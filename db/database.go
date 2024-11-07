@@ -2,7 +2,9 @@ package db
 
 import (
 	"fmt"
+	"strconv"
 
+	"github.com/MagicalCrawler/RealEstateApp/models"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -21,5 +23,19 @@ func NewConnection() *gorm.DB {
 		panic("Error connecting to database")
 	}
 
+	db.AutoMigrate(&models.User{})
+	seedSuperAdminUser(db)
 	return db
+}
+
+func seedSuperAdminUser(db *gorm.DB) {
+	superAdminTelegramId, _ := strconv.ParseUint(utils.GetConfig("SUPER_ADMIN"), 10, 64)
+	superAdminUser := models.User{
+		TelegramID: superAdminTelegramId,
+		Role:       models.SUPER_ADMIN,
+	}
+	if err := db.FirstOrCreate(&superAdminUser, models.User{TelegramID: superAdminTelegramId}).Error; err != nil {
+		fmt.Printf("Could not seed super-admin user (%v): %v", superAdminTelegramId, err)
+		panic("Could not seed super-admin user")
+	}
 }
