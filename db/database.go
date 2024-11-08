@@ -24,6 +24,12 @@ func NewConnection() *gorm.DB {
 	}
 
 	db.AutoMigrate(&models.User{})
+
+	// Auto-migrate the SearchItem struct to create the database schema
+	if err := db.AutoMigrate(&models.SearchItem{}); err != nil {
+		return nil, err
+	}
+
 	seedSuperAdminUser(db)
 	return db
 }
