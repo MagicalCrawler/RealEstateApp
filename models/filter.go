@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type SearchItem struct {
+type FilterItem struct {
 	ID               uint       `gorm:"primaryKey" json:"id"`
 	PriceMin         float64    `json:"price_min"`
 	PriceMax         float64    `json:"price_max"`
@@ -24,5 +24,5 @@ type SearchItem struct {
 	HasElevator      bool       `json:"has_elevator"`
 	CreatedDateStart time.Time  `json:"created_date_start"`
 	CreatedDateEnd   time.Time  `json:"created_date_end"`
-	WatchLists       []WatchList `gorm:"foreignKey:SearchItemID"` // Optional, for reverse lookup
+	WatchLists       []WatchList `gorm:"foreignKey:FilterItemID"` // Optional, for reverse lookup
 }
