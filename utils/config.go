@@ -12,9 +12,9 @@ func GetConfig(key string) string {
 }
 
 func LoadEnvFile() {
-	err := godotenv.Load(".env.example")
+	err := godotenv.Load(".env")
 	if err != nil {
 		fmt.Println(err)
-		panic("Error loading .env.example file")
+		panic("Error loading .env file")
 	}
 }
