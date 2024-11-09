@@ -25,8 +25,8 @@ func NewConnection() *gorm.DB {
 
 	db.AutoMigrate(&models.User{})
 
-	// Auto-migrate the SearchItem struct to create the database schema
-	if err := db.AutoMigrate(&models.SearchItem{}); err != nil {
+	// Run auto-migrations for FilterItem and WatchList models
+	if err := db.AutoMigrate(&models.FilterItem{}, &models.WatchList{}); err != nil {
 		return nil, err
 	}
 
