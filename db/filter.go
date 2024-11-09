@@ -41,3 +41,12 @@ func DeleteFilterItem(db *gorm.DB, id uint) error {
 	}
 	return nil
 }
+
+// GetAllFilterItems retrieves all FilterItem entries in the database
+func GetAllFilterItems(db *gorm.DB) ([]FilterItem, error) {
+	var filterItems []FilterItem
+	if err := db.Find(&filterItems).Error; err != nil {
+		return nil, err
+	}
+	return filterItems, nil
+}
