@@ -33,3 +33,11 @@ func UpdateFilterItem(db *gorm.DB, id uint, updatedData FilterItem) (*FilterItem
 
 	return &filterItem, nil
 }
+
+// DeleteFilterItem deletes a FilterItem by its ID
+func DeleteFilterItem(db *gorm.DB, id uint) error {
+	if err := db.Delete(&FilterItem{}, id).Error; err != nil {
+		return err
+	}
+	return nil
+}
