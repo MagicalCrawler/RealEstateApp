@@ -72,3 +72,21 @@ func UpdateWatchList(db *gorm.DB, watchListID uint, updatedData WatchList, updat
 
 	return &watchList, nil
 }
+
+func GetWatchListByID(db *gorm.DB, watchListID uint) (*WatchList, error) {
+	var watchList WatchList
+	if err := db.Preload("FilterItem").First(&watchList, watchListID).Error; err != nil {
+		return nil, err
+	}
+	return &watchList, nil
+}
+
+// GetAllWatchLists retrieves all watch list entries along with their associated filter criteria
+func GetAllWatchLists(db *gorm.DB) ([]WatchList, error) {
+	var watchLists []WatchList
+	// Use Preload to load associated FilterItem data for each WatchList entry
+	if err := db.Preload("FilterItem").Find(&watchLists).Error; err != nil {
+		return nil, err
+	}
+	return watchLists, nil
+}
