@@ -6,13 +6,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateWatchList(db *gorm.DB, userID uint, filterItem SearchItem, interval int) (*WatchList, error) {
+func CreateWatchList(db *gorm.DB, userID uint, filterItem FilterItem, interval int) (*WatchList, error) {
 	// Save the FilterItem first
 	if err := db.Create(&filterItem).Error; err != nil {
 		return nil, err
 	}
 
-	// Create the WatchList with the associated SearchItemID
+	// Create the WatchList with the associated FilterItemID
 	watchList := WatchList{
 		UserID:          userID,
 		FilterItemID:    filterItem.ID,
@@ -51,4 +51,24 @@ func DeleteWatchList(db *gorm.DB, watchListID uint) error {
 	}
 
 	return nil
+}
+
+func UpdateWatchList(db *gorm.DB, watchListID uint, updatedData WatchList, updatedFilterItem FilterItem) (*WatchList, error) {
+	var watchList WatchList
+	if err := db.First(&watchList, watchListID).Error; err != nil {
+		return nil, err
+	}
+
+	// Update FilterItem fields if needed
+	updatedFilterItem.ID = watchList.FilterItemID // Ensure we're updating the correct FilterItem
+	if err := db.Model(&FilterItem{}).Where("id = ?", watchList.FilterItemID).Updates(updatedFilterItem).Error; err != nil {
+		return nil, err
+	}
+
+	// Update WatchList fields
+	if err := db.Model(&watchList).Updates(updatedData).Error; err != nil {
+		return nil, err
+	}
+
+	return &watchList, nil
 }
