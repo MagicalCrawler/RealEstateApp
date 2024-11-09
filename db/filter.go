@@ -9,3 +9,27 @@ func CreateFilterItem(db *gorm.DB, filterItem FilterItem) (*FilterItem, error) {
 	}
 	return &filterItem, nil
 }
+
+// GetFilterItemByID retrieves a FilterItem by its ID
+func GetFilterItemByID(db *gorm.DB, id uint) (*FilterItem, error) {
+	var filterItem FilterItem
+	if err := db.First(&filterItem, id).Error; err != nil {
+		return nil, err
+	}
+	return &filterItem, nil
+}
+
+// UpdateFilterItem updates an existing FilterItem based on its ID
+func UpdateFilterItem(db *gorm.DB, id uint, updatedData FilterItem) (*FilterItem, error) {
+	var filterItem FilterItem
+	if err := db.First(&filterItem, id).Error; err != nil {
+		return nil, err
+	}
+
+	// Update fields based on the updatedData struct
+	if err := db.Model(&filterItem).Updates(updatedData).Error; err != nil {
+		return nil, err
+	}
+
+	return &filterItem, nil
+}
