@@ -6,16 +6,16 @@ import (
 	"gorm.io/gorm"
 )
 
-func CreateWatchList(db *gorm.DB, userID uint, searchItem SearchItem, interval int) (*WatchList, error) {
-	// Save the SearchItem first
-	if err := db.Create(&searchItem).Error; err != nil {
+func CreateWatchList(db *gorm.DB, userID uint, filterItem SearchItem, interval int) (*WatchList, error) {
+	// Save the FilterItem first
+	if err := db.Create(&filterItem).Error; err != nil {
 		return nil, err
 	}
 
 	// Create the WatchList with the associated SearchItemID
 	watchList := WatchList{
 		UserID:          userID,
-		SearchItemID:    searchItem.ID,
+		FilterItemID:    filterItem.ID,
 		RefreshInterval: interval,
 		LastChecked:     time.Now(),
 	}
@@ -32,4 +32,23 @@ func GetAllWatchListsForUser(db *gorm.DB, userID uint) ([]WatchList, error) {
 		return nil, err
 	}
 	return watchLists, nil
+}
+
+func DeleteWatchList(db *gorm.DB, watchListID uint) error {
+	var watchList WatchList
+	if err := db.First(&watchList, watchListID).Error; err != nil {
+		return err
+	}
+
+	// Delete the associated FilterItem
+	if err := db.Delete(&FilterItem{}, watchList.FilterItemID).Error; err != nil {
+		return err
+	}
+
+	// Delete the WatchList entry
+	if err := db.Delete(&WatchList{}, watchListID).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
