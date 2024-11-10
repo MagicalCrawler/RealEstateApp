@@ -7,7 +7,8 @@ import (
 
 type PostHistory struct {
 	gorm.Model
-	PostID       uint   `gorm:"foreignKey:HistoryID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	PostID       uint
+	Post         Post
 	PostURL      string `gorm:"type:text"`
 	Price        int64
 	City         string `gorm:"type:varchar(63)"`
