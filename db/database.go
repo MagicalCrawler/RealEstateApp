@@ -25,6 +25,9 @@ func NewConnection() *gorm.DB {
 
 	db.AutoMigrate(&models.User{})
 	seedSuperAdminUser(db)
+
+	db.AutoMigrate(&models.Post{}, &models.PostHistory{}, &models.Bookmark{})
+
 	return db
 }
 
