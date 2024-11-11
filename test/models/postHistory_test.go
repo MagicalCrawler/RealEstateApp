@@ -37,7 +37,7 @@ func TestNotExistingPost(t *testing.T) {
 	clearData()
 	defer clearData()
 	postHistory := models.PostHistory{
-		PostID:        1,
+		PostID:       1,
 		PostURL:      "https://divar.ir/v/%DB%B1%DB%B1%DB%B0%D9%85%D8%AA%D8%B1-%DA%A9%D9%84%DB%8C%D8%AF%D9%86%D8%AE%D9%88%D8%B1%D8%AF%D9%87-%D8%A8%D8%B1%D8%AC-%D8%B3%D8%AA%D8%A7%D8%B1%D9%87/gZ8rtsHM",
 		Price:        127000000,
 		City:         "تهران",
@@ -59,12 +59,17 @@ func TestNotExistingPost(t *testing.T) {
 	}
 }
 
-/* 
 func TestInsertPostSimple(t *testing.T) {
 	clearData()
 	defer clearData()
+	post := models.Post{
+		Title: "test-title",
+	}
+	if err := dbConnection.Create(&post).Error; err != nil {
+		t.Fatalf(`Insert Post Failed: %v`, err)
+	}
 	postHistory := models.PostHistory{
-		Post:        models.Post{Title: "test-title"},
+		Post:         post,
 		PostURL:      "https://divar.ir/v/%DB%B1%DB%B1%DB%B0%D9%85%D8%AA%D8%B1-%DA%A9%D9%84%DB%8C%D8%AF%D9%86%D8%AE%D9%88%D8%B1%D8%AF%D9%87-%D8%A8%D8%B1%D8%AC-%D8%B3%D8%AA%D8%A7%D8%B1%D9%87/gZ8rtsHM",
 		Price:        127000000,
 		City:         "تهران",
@@ -84,12 +89,4 @@ func TestInsertPostSimple(t *testing.T) {
 	if err != nil {
 		t.Fatalf(`Insert PostHistory Failed: %v`, err)
 	}
-	var Post models.Post
-	err = dbConnection.Select(&Post).Where("ID = ?", 1) .Error
-	if err != nil {
-		t.Fatalf(`Select Post Failed: %v`, err)
-	}
-	if Post.Title == "test-title" {
-		t.Fatalf(`Inserted Post is not matched: %v`, err)
-	}
-} */
+}

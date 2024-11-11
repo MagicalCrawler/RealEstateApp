@@ -5,6 +5,6 @@ import (
 )
 
 type Post struct {
-	gorm.Model
 	Title string `gorm:"type:text"`
+	gorm.Model
 }

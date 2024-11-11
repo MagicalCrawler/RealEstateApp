@@ -6,11 +6,12 @@ import (
 )
 
 type PostHistory struct {
-	gorm.Model
 	PostID       uint
 	Post         Post
 	PostURL      string `gorm:"type:text"`
 	Price        int64
+	Deposit      int64
+	Rent         int64
 	City         string `gorm:"type:varchar(63)"`
 	Neighbor     string `gorm:"type:varchar(63)"`
 	Area         int
@@ -24,4 +25,5 @@ type PostHistory struct {
 	HasElevator  bool
 	ImageURL     string `gorm:"type:text"`
 	Description  string `gorm:"type:text"`
+	gorm.Model
 }
