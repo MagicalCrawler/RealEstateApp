@@ -4,6 +4,7 @@ import (
 	"Bootcamp/Projects/RealEstateApp/crawlers"
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -17,8 +18,8 @@ type DivarRealEstateCrawler struct {
 	userAgent  string
 }
 
+// NewDivarRealEstateCrawler creates a new instance of DivarRealEstateCrawler
 func NewDivarRealEstateCrawler() *DivarRealEstateCrawler {
-
 	return &DivarRealEstateCrawler{
 		baseURL: "https://divar.ir/s/tehran/real-estate",
 		httpClient: &http.Client{
@@ -28,40 +29,80 @@ func NewDivarRealEstateCrawler() *DivarRealEstateCrawler {
 	}
 }
 
-// Crawl fetches and extracts posts from the main page
-func (c *DivarRealEstateCrawler) Crawl(ctx context.Context) ([]crawlers.Post, error) {
+// RetryableRequest is a helper function to make HTTP requests with retries
+func (c *DivarRealEstateCrawler) RetryableRequest(ctx context.Context, req *http.Request, retries int, wait time.Duration) (*http.Response, error) {
+	var resp *http.Response
+	var err error
 
-	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+	for i := 0; i <= retries; i++ {
+		resp, err = c.httpClient.Do(req)
+		if err == nil && resp.StatusCode != http.StatusTooManyRequests {
+			return resp, nil
+		}
+
+		if resp != nil && resp.StatusCode == http.StatusTooManyRequests {
+			log.Printf("Received 429 status code, on try %d. Waiting for %s before retrying...", i, wait)
+			time.Sleep(wait)
+		} else {
+			break
+		}
 	}
 
-	req.Header.Set("User-Agent", c.userAgent)
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch data: %w", err)
+	return resp, err
+}
+
+// Modify the Crawl method to support pagination
+func (c *DivarRealEstateCrawler) Crawl(ctx context.Context, pageLimit int) ([]crawlers.Post, error) {
+	paginationURLs := getPaginationURLs(c.baseURL, pageLimit)
+
+	var allPosts []crawlers.Post
+
+	for _, pageURL := range paginationURLs {
+		fmt.Println("Crawling page: ", pageURL)
+
+		req, err := http.NewRequestWithContext(ctx, "GET", pageURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request for %s: %w", pageURL, err)
+		}
+		req.Header.Set("User-Agent", c.userAgent)
+
+		resp, err := c.RetryableRequest(ctx, req, 5, 1*time.Second)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch data from %s: %w", pageURL, err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("unexpected status code for %s: %d", pageURL, resp.StatusCode)
+		}
+
+		doc, err := goquery.NewDocumentFromReader(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse HTML from %s: %w", pageURL, err)
+		}
+
+		doc.Find("div.kt-post-card__body").Each(func(i int, s *goquery.Selection) {
+			post := c.extractPostFromSelection(s)
+			allPosts = append(allPosts, post)
+		})
+
+		time.Sleep(1 * time.Second)
 	}
 
-	defer resp.Body.Close()
+	return allPosts, nil
+}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+// getPaginationURLs generates URLs for multiple pages based on the pagination limit
+func getPaginationURLs(base string, limit int) []string {
+	var pages []string
+	for i := 1; i <= limit; i++ {
+		if i == 1 {
+			pages = append(pages, base)
+		} else {
+			pages = append(pages, fmt.Sprintf("%s?page=%d", base, i))
+		}
 	}
-
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse HTML: %w", err)
-	}
-
-	var posts []crawlers.Post
-	doc.Find("div.kt-post-card__body").Each(func(i int, s *goquery.Selection) {
-		post := c.extractPostFromSelection(s)
-		posts = append(posts, post)
-	})
-
-	return posts, nil
-
+	return pages
 }
 
 // CrawlPostDetails fetches additional details for a specific post
@@ -70,42 +111,53 @@ func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, post craw
 	if err != nil {
 		return post, fmt.Errorf("failed to create request: %w", err)
 	}
-
 	req.Header.Set("User-Agent", c.userAgent)
-	resp, err := c.httpClient.Do(req)
+
+	resp, err := c.RetryableRequest(ctx, req, 5, 1*time.Second)
 	if err != nil {
 		return post, fmt.Errorf("failed to fetch post details: %w", err)
 	}
-
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return post, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
-
 	if err != nil {
 		return post, fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
 	title := strings.TrimSpace(doc.Find("h1.kt-page-title__title").Text())
-
 	if title != "" {
 		post.Title = title
 	}
 
 	price := strings.TrimSpace(doc.Find("p.kt-unexpandable-row__value").First().Text())
-
 	if price != "" {
 		post.Price = price
+	}
+
+	images := extractImageURLs(doc)
+	if len(images) > 0 {
+		post.Images = images
 	}
 
 	return post, nil
 }
 
+func extractImageURLs(doc *goquery.Document) []string {
+	var images []string
+	doc.Find("div.kt-base-carousel__slide img.kt-image-block__image").Each(func(i int, s *goquery.Selection) {
+		if src, exists := s.Attr("src"); exists {
+			images = append(images, src)
+		}
+	})
+	return images
+}
+
 // extractPostFromSelection extracts post information from a goquery selection
 func (c *DivarRealEstateCrawler) extractPostFromSelection(s *goquery.Selection) crawlers.Post {
-
 	title := strings.TrimSpace(s.Find("h2.kt-post-card__title").Text())
 	if title == "" {
 		title = "No Title"
@@ -121,15 +173,9 @@ func (c *DivarRealEstateCrawler) extractPostFromSelection(s *goquery.Selection) 
 		link = "No Link"
 	}
 
-	image, exists := s.Parent().Find("img").Attr("src")
-	if !exists {
-		image = "No Image"
-	}
-
 	return crawlers.Post{
 		Title: title,
 		Price: price,
 		Link:  fmt.Sprintf("https://divar.ir%s", link),
-		Image: image,
 	}
 }

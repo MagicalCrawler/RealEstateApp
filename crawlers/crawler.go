@@ -5,10 +5,10 @@ import (
 )
 
 type Post struct {
-	Title string
-	Price string
-	Link  string
-	Image string
+	Title  string
+	Price  string
+	Link   string
+	Images []string
 }
 
 type Crawler interface {
