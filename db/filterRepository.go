@@ -19,8 +19,9 @@ type FilterItemRepositoryImpl struct {
 }
 
 func NewFilterItemRepository(dbConnection *gorm.DB) FilterItemRepository {
-	return FilterItemRepositoryImpl{dbConnection: dbConnection}
+	return &FilterItemRepositoryImpl{dbConnection: dbConnection}
 }
+
 
 func (repo FilterItemRepositoryImpl) Create(filterItem models.FilterItem) (models.FilterItem, error) {
 	err := repo.dbConnection.Create(&filterItem).Error
