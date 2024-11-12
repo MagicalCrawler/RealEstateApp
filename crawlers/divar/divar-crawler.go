@@ -1,7 +1,6 @@
 package divar
 
 import (
-	"Bootcamp/Projects/RealEstateApp/crawlers"
 	"context"
 	"fmt"
 	"log"
@@ -9,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MagicalCrawler/RealEstateApp/crawlers"
 	"github.com/PuerkitoBio/goquery"
 )
 
