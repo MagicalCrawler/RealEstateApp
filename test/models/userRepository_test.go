@@ -59,7 +59,6 @@ func TestInsertUserWithRepository(t *testing.T) {
 	if err != nil {
 		t.Fatalf(`Insert User Failed: %v`, err)
 	}
-
 	_, err = userRepository.Find(user.ID)
 	if err != nil {
 		t.Fatalf(`Find User Failed: %v`, err)

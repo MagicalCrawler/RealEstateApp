@@ -11,6 +11,7 @@ import (
 type UserRepository interface {
 	Save(models.User) (models.User, error)
 	Find(ID uint) (models.User, error)
+	FindByTelegramID(TelegramID uint64) (models.User, error)
 	FindAll() []models.User
 }
 
@@ -27,15 +28,23 @@ func (ur UserRepositoryImpl) Save(user models.User) (models.User, error) {
 	return user, err
 }
 
-func (ur UserRepositoryImpl) Find(id uint) (models.User, error) {
+func (ur UserRepositoryImpl) Find(ID uint) (models.User, error) {
 	var user models.User
-	result := ur.dbConnection.Find(&user, id)
+	result := ur.dbConnection.Find(&user, ID)
+	fmt.Println("here", user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		// TODO
 	}
 	return user, result.Error
 }
-
+func (ur UserRepositoryImpl) FindByTelegramID(TelegramID uint64) (models.User, error) {
+	var user models.User
+	result := ur.dbConnection.Find(&user, TelegramID)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		// TODO
+	}
+	return user, result.Error
+}
 func (ur UserRepositoryImpl) FindAll() []models.User {
 	var users []models.User
 	result := ur.dbConnection.Find(users)

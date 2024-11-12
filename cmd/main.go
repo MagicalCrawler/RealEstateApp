@@ -1,15 +1,19 @@
 package main
 
 import (
-	telegram_client "github.com/MagicalCrawler/RealEstateApp/cmd/client"
+	"github.com/MagicalCrawler/RealEstateApp/cmd/client"
 	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
 )
 
 func main() {
+
+	// Load environment variables
 	utils.LoadEnvFile()
-	db.NewConnection()
 
-	telegram_client.Run()
+	// Initialize DB connection
+	dbConnection := db.NewConnection()
 
+	// Run the Telegram bot
+	client.Run(dbConnection)
 }

@@ -10,7 +10,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
+	"gorm.io/gorm"
 )
 
 const (
@@ -18,23 +20,29 @@ const (
 	/search to find properties based on filters like price, location, and type.
 	/notify to get alerts for new listings matching your preferences.
 	/help for more information.`
-	batchSize = 100
-	timeout   = 10
+	timeout = 10
 )
 
 var (
-	firstMenu = []string{
+	apiURL         string
+	userRepository db.UserRepository
+	firstMenu      = []string{
 		"Search", "Setting", "Populars", "Help",
 	}
-	apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 )
 
-func Run() {
+func InitUserRepository(dbConnection *gorm.DB) {
+	userRepository = db.CreateNewUserRepository(dbConnection)
+}
+
+func Run(dbConnection *gorm.DB) {
+	InitUserRepository(dbConnection)
+
+	apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 	go pollUpdates()
 
 	fmt.Println("Bot is running...")
 	select {}
-
 }
 func pollUpdates() {
 	offset := 0
@@ -48,7 +56,6 @@ func pollUpdates() {
 
 		for _, update := range updates {
 			offset = update.UpdateID + 1
-
 			if update.Message != nil {
 				handleMessage(update.Message)
 			} else if update.Callback != nil {
@@ -61,7 +68,7 @@ func pollUpdates() {
 }
 
 func getUpdates(offset int) ([]Update, error) {
-	resp, err := http.Get(fmt.Sprintf("%s/getUpdates?offset=%d&timeout=10", apiURL, offset))
+	resp, err := http.Get(fmt.Sprintf("%s/getUpdates?offset=%d&timeout=%d", apiURL, offset, timeout))
 	if err != nil {
 		return nil, err
 	}
@@ -80,13 +87,33 @@ func getUpdates(offset int) ([]Update, error) {
 
 func handleMessage(message *Message) {
 	switch {
-	case message.Location != nil:
-		latitude := message.Location.Latitude
-		longitude := message.Location.Longitude
-		responseText := fmt.Sprintf("You selected the location!\nLatitude: %.5f, Longitude: %.5f", latitude, longitude)
-		sendMessage(message.Chat.ID, responseText)
 	case message.Text == "/start":
+
+		// Check if user already exists by Telegram ID
+		// existingUser, err := userRepository.FindByTelegramID(uint64(message.From.ID))
+		// if err != nil {
+		// 	log.Printf("Error checking if user exists: %v", err)
+		// 	sendMessage(message.Chat.ID, "There was an error checking your profile. Please try again later.")
+		// 	return
+		// }
+
+		// if existingUser != nil {
+		// 	// User already exists, so just show a welcome message
+		// 	sendMainMenu(message.Chat.ID, message.From.FirstName)
+		// 	return
+		// }
+
+		// // If the user does not exist, create a new user
+		// newUser := models.User{TelegramID: uint64(message.From.ID), Role: models.Role(models.USER)}
+		// _, err = userRepository.Save(newUser)
+		// if err != nil {
+		// 	log.Printf("Error saving new user: %v", err)
+		// 	sendMessage(message.Chat.ID, "There was an error creating your profile. Please try again later.")
+		// 	return
+		// }
+
 		sendMainMenu(message.Chat.ID, message.From.FirstName)
+
 	case message.Text == "Choose an option":
 		sendMainMenuSelectionInlineKeyboard(message.Chat.ID, "Menu item:")
 	default:
