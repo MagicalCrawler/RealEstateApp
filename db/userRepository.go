@@ -31,7 +31,6 @@ func (ur UserRepositoryImpl) Save(user models.User) (models.User, error) {
 func (ur UserRepositoryImpl) Find(ID uint) (models.User, error) {
 	var user models.User
 	result := ur.dbConnection.Find(&user, ID)
-	fmt.Println("here", user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		// TODO
 	}
