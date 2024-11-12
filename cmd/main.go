@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
 	tgEvent "github.com/MagicalCrawler/RealEstateApp/cmd/events/telegram_event"
 	tgClient "github.com/MagicalCrawler/RealEstateApp/cmd/clients/telegram"
@@ -15,6 +16,7 @@ const (
 
 func main() {
 	utils.LoadEnvFile()
+	db.NewConnection()
 
 	token := utils.GetConfig("TELEGRAM_TOKEN")
 	log.Println("Bot Token:", token)
@@ -30,6 +32,5 @@ func main() {
 	if err := consumer.Start(); err != nil {
 		log.Fatal("service is stopped", err)
 	}
-
 }
 
