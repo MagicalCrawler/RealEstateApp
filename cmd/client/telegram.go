@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/MagicalCrawler/RealEstateApp/db"
+	"github.com/MagicalCrawler/RealEstateApp/models"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
 	"gorm.io/gorm"
 )
@@ -90,29 +91,30 @@ func handleMessage(message *Message) {
 	case message.Text == "/start":
 
 		// Check if user already exists by Telegram ID
-		// existingUser, err := userRepository.FindByTelegramID(uint64(message.From.ID))
-		// if err != nil {
-		// 	log.Printf("Error checking if user exists: %v", err)
-		// 	sendMessage(message.Chat.ID, "There was an error checking your profile. Please try again later.")
-		// 	return
-		// }
+		existingUser, err := userRepository.FindByTelegramID(uint64(message.From.ID))
+		if err != nil {
+			log.Printf("Error checking if user exists: %v", err)
+			sendMessage(message.Chat.ID, "There was an error checking your profile. Please try again later.")
+			return
+		}
 
-		// if existingUser != nil {
-		// 	// User already exists, so just show a welcome message
-		// 	sendMainMenu(message.Chat.ID, message.From.FirstName)
-		// 	return
-		// }
+		if &existingUser != nil {
+			// User already exists, so just show a welcome message
+			sendMainMenu(message.Chat.ID, message.From.FirstName)
+			return
+		}
 
-		// // If the user does not exist, create a new user
-		// newUser := models.User{TelegramID: uint64(message.From.ID), Role: models.Role(models.USER)}
-		// _, err = userRepository.Save(newUser)
-		// if err != nil {
-		// 	log.Printf("Error saving new user: %v", err)
-		// 	sendMessage(message.Chat.ID, "There was an error creating your profile. Please try again later.")
-		// 	return
-		// }
+		// If the user does not exist, create a new user
+		newUser := models.User{TelegramID: uint64(message.From.ID), Role: models.Role(models.USER)}
+		_, err = userRepository.Save(newUser)
+		if err != nil {
+			log.Printf("Error saving new user: %v", err)
+			sendMessage(message.Chat.ID, "There was an error creating your profile. Please try again later.")
+			return
+		}
 
 		sendMainMenu(message.Chat.ID, message.From.FirstName)
+		return
 
 	case message.Text == "Choose an option":
 		sendMainMenuSelectionInlineKeyboard(message.Chat.ID, "Menu item:")
