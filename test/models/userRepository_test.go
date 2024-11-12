@@ -1,35 +1,35 @@
 package models
 
 import (
-	"os"
+	// "os"
 	"testing"
 
 	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/models"
-	"gorm.io/gorm"
+	// 	"gorm.io/gorm"
 )
 
-var dbConnection *gorm.DB
+// var dbConnection *gorm.DB
 
-func TestMain(m *testing.M) {
-	env := map[string]string{
-		"POSTGRES_HOST":     "localhost",
-		"POSTGRES_USER":     "admin",
-		"POSTGRES_PASSWORD": "123456",
-		"POSTGRES_DB_NAME":  "MagicCrawler",
-		"POSTGRES_PORT":     "5432",
-		"SUPER_ADMIN":       "123456789",
-	}
-	for key, val := range env {
-		os.Setenv(key, val)
-	}
-	dbConnection = db.NewConnection()
-	m.Run()
-}
+// func TestMain(m *testing.M) {
+// 	env := map[string]string{
+// 		"POSTGRES_HOST":     "localhost",
+// 		"POSTGRES_USER":     "admin",
+// 		"POSTGRES_PASSWORD": "123456",
+// 		"POSTGRES_DB_NAME":  "MagicCrawler",
+// 		"POSTGRES_PORT":     "5432",
+// 		"SUPER_ADMIN":       "123456789",
+// 	}
+// 	for key, val := range env {
+// 		os.Setenv(key, val)
+// 	}
+// 	dbConnection = db.NewConnection()
+// 	m.Run()
+// }
 
-func clearData() {
-	dbConnection.Exec("DELETE FROM users")
-}
+// func clearData() {
+// 	dbConnection.Exec("DELETE FROM users")
+// }
 
 func TestInsertUserDirectly(t *testing.T) {
 	clearData()
