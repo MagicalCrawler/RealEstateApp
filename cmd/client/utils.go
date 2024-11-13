@@ -11,14 +11,11 @@ import (
 	"time"
 
 	"github.com/MagicalCrawler/RealEstateApp/models"
-	"github.com/MagicalCrawler/RealEstateApp/utils"
 )
 
 const (
 	timeout = 10
 )
-
-var apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 
 func getOrCreateUserRunCommand(message *Message) models.User {
 	// Check if user already exists by Telegram ID
@@ -80,6 +77,7 @@ func deleteMessage(chatID int, messageID int) error {
 }
 func getUpdates(offset int) ([]Update, error) {
 	resp, err := http.Get(fmt.Sprintf("%s/getUpdates?offset=%d&timeout=%d", apiURL, offset, timeout))
+
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +90,6 @@ func getUpdates(offset int) ([]Update, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
 	}
-
 	return result.Result, nil
 }
 func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {

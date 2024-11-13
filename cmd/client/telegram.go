@@ -4,14 +4,16 @@ import (
 	"fmt"
 
 	"github.com/MagicalCrawler/RealEstateApp/db"
+	"github.com/MagicalCrawler/RealEstateApp/utils"
 	"gorm.io/gorm"
 )
 
 var userRepository db.UserRepository
+var apiURL string
 
 func Run(dbConnection *gorm.DB) {
 	userRepository = db.CreateNewUserRepository(dbConnection)
-
+	apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 	go pollUpdates()
 
 	fmt.Println("Bot is running...")
