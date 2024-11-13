@@ -4,79 +4,151 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
+	"math/rand"
 	"strings"
 	"time"
 
 	"github.com/MagicalCrawler/RealEstateApp/crawlers"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/playwright-community/playwright-go"
 )
 
 type DivarRealEstateCrawler struct {
 	baseURL    string
-	httpClient *http.Client
-	userAgent  string
+	userAgents []string
 }
 
 // NewDivarRealEstateCrawler creates a new instance of DivarRealEstateCrawler
 func NewDivarRealEstateCrawler() *DivarRealEstateCrawler {
 	return &DivarRealEstateCrawler{
-		baseURL: "https://divar.ir/s/tehran/real-estate",
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+		baseURL: "https://divar.ir",
+		userAgents: []string{
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36",
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+			"Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36",
+			"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15A372 Safari/604.1",
+			"Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36",
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0",
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15",
+			"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36",
+			"Mozilla/5.0 (Linux; Android 9; SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.89 Mobile Safari/537.36",
+			"Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15A5341f Safari/604.1",
+			"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36",
+			"Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko",
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:42.0) Gecko/20100101 Firefox/42.0",
+			"Mozilla/5.0 (Linux; Android 10; SM-A505F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Mobile Safari/537.36",
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64; Trident/7.0; AS; rv:11.0) like Gecko",
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36",
+			"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
+			"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0",
+			"Mozilla/5.0 (Linux; U; Android 9; en-US; SM-G960U Build/PPR1.180610.011) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.89 Mobile Safari/537.36",
 		},
-		userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36",
 	}
 }
 
-// RetryableRequest is a helper function to make HTTP requests with retries
-func (c *DivarRealEstateCrawler) RetryableRequest(ctx context.Context, req *http.Request, retries int, wait time.Duration) (*http.Response, error) {
-	var resp *http.Response
-	var err error
+// RandomUserAgent selects a random User-Agent string from the list
+func (c *DivarRealEstateCrawler) RandomUserAgent() string {
+	return c.userAgents[rand.Intn(len(c.userAgents))]
+}
 
-	for i := 0; i <= retries; i++ {
-		resp, err = c.httpClient.Do(req)
-		if err == nil && resp.StatusCode != http.StatusTooManyRequests {
-			return resp, nil
-		}
+// GetCities fetches city URLs from the main page
+func (c *DivarRealEstateCrawler) GetCities(ctx context.Context) ([]string, error) {
+	var cityURLs []string
 
-		if resp != nil && resp.StatusCode == http.StatusTooManyRequests {
-			log.Printf("Received 429 status code, on try %d. Waiting for %s before retrying...", i, wait)
-			time.Sleep(wait)
-		} else {
-			break
+	pw, err := playwright.Run()
+	if err != nil {
+		log.Fatalf("could not start Playwright: %v", err)
+	}
+	defer pw.Stop()
+
+	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
+		Headless: playwright.Bool(true),
+	})
+	if err != nil {
+		log.Fatalf("could not launch browser: %v", err)
+	}
+	defer browser.Close()
+
+	page, err := browser.NewPage()
+	if err != nil {
+		return nil, fmt.Errorf("could not create new page: %w", err)
+	}
+	defer page.Close()
+
+	// Navigate to the base URL and load the page
+	if _, err = page.Goto(c.baseURL); err != nil {
+		return nil, fmt.Errorf("could not navigate to %s: %w", c.baseURL, err)
+	}
+
+	// Adding a short delay to ensure the page fully loads
+	time.Sleep(2 * time.Second)
+
+	// Extracting city links from the page
+	elements, err := page.QuerySelectorAll("a[class*=cities__item]") // Adjust selector based on the actual class of city links
+	if err != nil {
+		return nil, fmt.Errorf("could not get city links: %w", err)
+	}
+
+	for _, element := range elements {
+		href, err := element.GetAttribute("href")
+		if err == nil && strings.HasPrefix(href, "/s/") {
+			cityURLs = append(cityURLs, fmt.Sprintf("%s%s", c.baseURL, href))
 		}
 	}
 
-	return resp, err
+	return cityURLs, nil
 }
 
-// Modify the Crawl method to support pagination
-func (c *DivarRealEstateCrawler) Crawl(ctx context.Context, pageLimit int) ([]crawlers.Post, error) {
-	paginationURLs := getPaginationURLs(c.baseURL, pageLimit)
-
+// CrawlCity performs crawling for each city URL
+func (c *DivarRealEstateCrawler) CrawlCity(ctx context.Context, cityURL string, pageLimit int) ([]crawlers.Post, error) {
+	paginationURLs := getPaginationURLs(cityURL, pageLimit)
 	var allPosts []crawlers.Post
+
+	pw, err := playwright.Run()
+	if err != nil {
+		log.Fatalf("could not start Playwright: %v", err)
+	}
+	defer pw.Stop()
+
+	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
+		Headless: playwright.Bool(true),
+	})
+	if err != nil {
+		log.Fatalf("could not launch browser: %v", err)
+	}
+	defer browser.Close()
 
 	for _, pageURL := range paginationURLs {
 		fmt.Println("Crawling page: ", pageURL)
 
-		req, err := http.NewRequestWithContext(ctx, "GET", pageURL, nil)
+		page, err := browser.NewPage()
 		if err != nil {
-			return nil, fmt.Errorf("failed to create request for %s: %w", pageURL, err)
+			return nil, fmt.Errorf("could not create new page: %w", err)
 		}
-		req.Header.Set("User-Agent", c.userAgent)
 
-		resp, err := c.RetryableRequest(ctx, req, 5, 1*time.Second)
+		page.SetExtraHTTPHeaders(map[string]string{
+			"User-Agent":      c.RandomUserAgent(),
+			"Accept-Language": "en-US,en;q=0.9",
+			"Referer":         "https://google.com",
+			"Accept-Encoding": "gzip, deflate, br",
+		})
+
+		if _, err = page.Goto(pageURL, playwright.PageGotoOptions{
+			WaitUntil: playwright.WaitUntilStateNetworkidle,
+		}); err != nil {
+			return nil, fmt.Errorf("could not navigate to %s: %w", pageURL, err)
+		}
+
+		time.Sleep(3 * time.Second) // Adjust the delay as needed
+
+		content, err := page.Content()
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch data from %s: %w", pageURL, err)
+			return nil, fmt.Errorf("could not get page content: %w", err)
 		}
-		defer resp.Body.Close()
+		page.Close()
 
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("unexpected status code for %s: %d", pageURL, resp.StatusCode)
-		}
-
-		doc, err := goquery.NewDocumentFromReader(resp.Body)
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse HTML from %s: %w", pageURL, err)
 		}
@@ -86,7 +158,7 @@ func (c *DivarRealEstateCrawler) Crawl(ctx context.Context, pageLimit int) ([]cr
 			allPosts = append(allPosts, post)
 		})
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Duration(rand.Intn(7)+3) * time.Second)
 	}
 
 	return allPosts, nil
@@ -103,57 +175,6 @@ func getPaginationURLs(base string, limit int) []string {
 		}
 	}
 	return pages
-}
-
-// CrawlPostDetails fetches additional details for a specific post
-func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, post crawlers.Post) (crawlers.Post, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", post.Link, nil)
-	if err != nil {
-		return post, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("User-Agent", c.userAgent)
-
-	resp, err := c.RetryableRequest(ctx, req, 5, 1*time.Second)
-	if err != nil {
-		return post, fmt.Errorf("failed to fetch post details: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return post, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		return post, fmt.Errorf("failed to parse HTML: %w", err)
-	}
-
-	title := strings.TrimSpace(doc.Find("h1.kt-page-title__title").Text())
-	if title != "" {
-		post.Title = title
-	}
-
-	price := strings.TrimSpace(doc.Find("p.kt-unexpandable-row__value").First().Text())
-	if price != "" {
-		post.Price = price
-	}
-
-	images := extractImageURLs(doc)
-	if len(images) > 0 {
-		post.Images = images
-	}
-
-	return post, nil
-}
-
-func extractImageURLs(doc *goquery.Document) []string {
-	var images []string
-	doc.Find("div.kt-base-carousel__slide img.kt-image-block__image").Each(func(i int, s *goquery.Selection) {
-		if src, exists := s.Attr("src"); exists {
-			images = append(images, src)
-		}
-	})
-	return images
 }
 
 // extractPostFromSelection extracts post information from a goquery selection
