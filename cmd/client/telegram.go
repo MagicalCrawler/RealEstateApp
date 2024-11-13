@@ -97,8 +97,8 @@ func handleMessage(message *Message) {
 			sendMessage(message.Chat.ID, "There was an error checking your profile. Please try again later.")
 			return
 		}
-
-		if &existingUser != nil {
+		empty_user := models.User{}
+		if *existingUser != empty_user {
 			// User already exists, so just show a welcome message
 			sendMainMenu(message.Chat.ID, message.From.FirstName)
 			return
