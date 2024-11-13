@@ -99,6 +99,13 @@ func handleMessage(message *Message) {
 		}
 		empty_user := models.User{}
 		if *existingUser != empty_user {
+			if existingUser.Role == 2 {
+				log.Printf("User with id : %d enters with role regular\n", existingUser.TelegramID)
+			} else if existingUser.Role == 1 {
+				log.Printf("User with id : %d enters with role admin\n", existingUser.TelegramID)
+			} else if existingUser.Role == 0 {
+				log.Printf("User with id : %d enters with role superadmin\n", existingUser.TelegramID)
+			}
 			// User already exists, so just show a welcome message
 			sendMainMenu(message.Chat.ID, message.From.FirstName)
 			return
@@ -106,6 +113,7 @@ func handleMessage(message *Message) {
 
 		// If the user does not exist, create a new user
 		newUser := models.User{TelegramID: uint64(message.From.ID), Role: models.Role(models.USER)}
+		log.Println("User with id : %d created with role regular", message.From.ID)
 		_, err = userRepository.Save(newUser)
 		if err != nil {
 			log.Printf("Error saving new user: %v", err)
