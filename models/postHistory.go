@@ -13,14 +13,14 @@ type PostHistory struct {
 	Deposit      int64
 	Rent         int64
 	City         string `gorm:"type:varchar(63)"`
-	Neighbor     string `gorm:"type:varchar(63)"`
+	Neighborhood string `gorm:"type:varchar(63)"`
 	Area         int
 	BedroomNum   int
 	BuyMode      types.BuyMode  `gorm:"type:string"`
 	Building     types.Building `gorm:"type:string"`
 	Age          uint8
 	FloorsNum    uint8
-	HasWareHouse bool
+	HasStorage   bool
 	HsaParking   bool
 	HasElevator  bool
 	ImageURL     string `gorm:"type:text"`
