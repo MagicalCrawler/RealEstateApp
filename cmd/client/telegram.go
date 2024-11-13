@@ -99,16 +99,20 @@ func handleMessage(message *Message) {
 		}
 		empty_user := models.User{}
 		if *existingUser != empty_user {
+			// User already exists, so just show a welcome message
 			if existingUser.Role == 2 {
 				log.Printf("User with id : %d enters with role regular\n", existingUser.TelegramID)
+				sendMenuForRegularUser(message.Chat.ID, message.From.FirstName)
+				return
 			} else if existingUser.Role == 1 {
 				log.Printf("User with id : %d enters with role admin\n", existingUser.TelegramID)
+				sendMenuForAdminUser(message.Chat.ID, message.From.FirstName)
+				return
 			} else if existingUser.Role == 0 {
 				log.Printf("User with id : %d enters with role superadmin\n", existingUser.TelegramID)
+				sendMenuForRegularUser(message.Chat.ID, message.From.FirstName)
+				return
 			}
-			// User already exists, so just show a welcome message
-			sendMainMenu(message.Chat.ID, message.From.FirstName)
-			return
 		}
 
 		// If the user does not exist, create a new user
@@ -121,17 +125,17 @@ func handleMessage(message *Message) {
 			return
 		}
 
-		sendMainMenu(message.Chat.ID, message.From.FirstName)
+		sendMenuForRegularUser(message.Chat.ID, message.From.FirstName)
 		return
 
 	case message.Text == "Choose an option":
-		sendMainMenuSelectionInlineKeyboard(message.Chat.ID, "Menu item:")
+		sendMenuForRegularUserSelectionInlineKeyboard(message.Chat.ID, "Menu item:")
 	default:
 		sendMessage(message.Chat.ID, "I didn't understand that command.")
 	}
 }
 
-func sendMainMenu(chatID int, name string) {
+func sendMenuForRegularUser(chatID int, name string) {
 	keyboard := ReplyKeyboardMarkupWithLocation{
 		Keyboard: [][]KeyboardButton{
 			{
@@ -145,8 +149,23 @@ func sendMainMenu(chatID int, name string) {
 	welcomeMsg := fmt.Sprintf("Welcome %s!", name)
 	sendMessageWithKeyboard(chatID, welcomeMsg, keyboard)
 }
+func sendMenuForAdminUser(chatID int, name string) {
+	keyboard := ReplyKeyboardMarkupWithLocation{
+		Keyboard: [][]KeyboardButton{
+			{
+				{Text: "Filters"},
+				{Text: "Premium"},
+				{Text: "Errors"},
+			},
+		},
+		ResizeKeyboard:  true,
+		OneTimeKeyboard: true,
+	}
+	welcomeMsg := fmt.Sprintf("Welcome %s!", name)
+	sendMessageWithKeyboard(chatID, welcomeMsg, keyboard)
+}
 
-func sendMainMenuSelectionInlineKeyboard(chatID int, text string) {
+func sendMenuForRegularUserSelectionInlineKeyboard(chatID int, text string) {
 	keyboard := createMainMenuInlineKeyboard()
 	sendMessageWithInlineKeyboard(chatID, text, keyboard)
 }
