@@ -60,7 +60,20 @@ func pollUpdates() {
 		time.Sleep(1 * time.Second)
 	}
 }
+func deleteMessage(chatID int, messageID int) error {
+	data := url.Values{}
+	data.Set("chat_id", strconv.Itoa(chatID))
+	data.Set("message_id", strconv.Itoa(messageID))
 
+	resp, err := http.PostForm(fmt.Sprintf("%s/deleteMessage", apiURL), data)
+	if err != nil {
+		log.Printf("Error deleting message: %v", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}
 func getUpdates(offset int) ([]Update, error) {
 	resp, err := http.Get(fmt.Sprintf("%s/getUpdates?offset=%d&timeout=%d", apiURL, offset, timeout))
 	if err != nil {
