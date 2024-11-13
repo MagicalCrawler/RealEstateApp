@@ -266,7 +266,7 @@ func sendLocationRequest(chatID int) {
 			{
 				KeyboardButton{
 					Text:            "Send your location 📍",
-					RequestLocation: true, // Request location on button click
+					RequestLocation: true,
 				},
 			},
 		},
@@ -274,6 +274,5 @@ func sendLocationRequest(chatID int) {
 		OneTimeKeyboard: true,
 	}
 
-	// Send message with location request keyboard
 	sendMessageWithKeyboard(chatID, "Please share your location:", keyboard)
 }

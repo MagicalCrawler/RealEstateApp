@@ -25,11 +25,11 @@ func NewConnection() *gorm.DB {
 
 	datab.AutoMigrate(&models.User{})
 	datab.AutoMigrate(&models.Post{}, &models.PostHistory{}, &models.Bookmark{})
-  // Run auto-migrations for FilterItem and WatchList models
+	// Run auto-migrations for FilterItem and WatchList models
 	if err := datab.AutoMigrate(&models.FilterItem{}, &models.WatchList{}); err != nil {
 		return nil
 	}
-  seedSuperAdminUser(datab)
+	seedSuperAdminUser(datab)
 	return datab
 }
 
