@@ -17,10 +17,6 @@ import (
 )
 
 const (
-	msgHelp = `Real Estate Finder Bot!
-	/search to find properties based on filters like price, location, and type.
-	/notify to get alerts for new listings matching your preferences.
-	/help for more information.`
 	timeout = 10
 )
 
@@ -57,7 +53,7 @@ func pollUpdates() {
 			if update.Message != nil {
 				handleMessage(update.Message)
 			} else if update.Callback != nil {
-				handleCallback(update.Callback)
+				// handleCallback(update.Callback)
 			}
 		}
 
@@ -124,14 +120,24 @@ func handleMessage(message *Message) {
 
 		sendMenuForRegularUser(message.Chat.ID, message.From.FirstName)
 		return
-	// case message.Text ==   // "Share Location":
-	// // 	sendLocationRequest(message.Chat.ID)
-	// // 	return
-	// // case message.Text == "Choose an option":
-	// 	sendMenuForRegularUser(message.Chat.ID, message.From.FirstName)
-	// 	return
+	case message.Text == "Help":
+		msgHelp := `Real Estate Finder Bot!
+					/search to find properties based on filters like price, location, and type.
+					/notify to get alerts for new listings matching your preferences.
+					/help for more information.`
+		sendHelpMessage(message.Chat.ID, msgHelp)
+		return
+	case message.Text == "Send Location":
+		msg := "You can send me location with your telegram attachment"
+		sendMessage(message.Chat.ID, msg)
+		return
+	case message.Location.Latitude != 0:
+		msg := fmt.Sprintf("Your selected location is with latitude: %d, and longitude%d", message.Location.Latitude, message.Location.Longitude)
+		sendMessage(message.Chat.ID, msg)
+		return
+	case message.Text == "Filters":
 	default:
-		print("******", message.Text)
+
 		sendMessage(message.Chat.ID, "I didn't understand that command.")
 		return
 	}
@@ -174,9 +180,13 @@ func sendMenuForSuperAdminUser(chatID int, name string) {
 				{Text: "Admins"},
 				{Text: "Premium"},
 				{Text: "Clients"},
-				{Text: "ََAdvertisements"},
-				{Text: "Crawler Setting"},
+			},
+			{
 				{Text: "Monitor"},
+				{Text: "ََAdvertisements"},
+			},
+			{
+				{Text: "Crawler Setting"},
 			},
 		},
 		ResizeKeyboard:  true,
@@ -206,13 +216,17 @@ func sendMenuForRegularUser(chatID int, name string) {
 	sendMessageWithKeyboard(chatID, welcomeMsg, keyboard)
 }
 
-func handleCallback(callback *CallbackQuery) {
-	selectedOption := callback.Data
-	if selectedOption == "Help" {
-		sendHelpMessage(callback.Message.Chat.ID, msgHelp)
-	}
-	answerCallbackQuery(callback.ID, "Selected!")
-}
+// func handleCallback(callback *CallbackQuery) {
+// 	selectedOption := callback.Data
+// 	if selectedOption == "Help" {
+// 		msgHelp := `Real Estate Finder Bot!
+// 					/search to find properties based on filters like price, location, and type.
+// 					/notify to get alerts for new listings matching your preferences.
+// 					/help for more information.`
+// 		sendHelpMessage(callback.Message.Chat.ID, msgHelp)
+// 	}
+// 	answerCallbackQuery(callback.ID, "Selected!")
+// }
 
 func sendHelpMessage(chatID int, text string) {
 	keyboard := ReplyKeyboardMarkupWithLocation{
