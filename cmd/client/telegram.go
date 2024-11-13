@@ -110,7 +110,7 @@ func handleMessage(message *Message) {
 				return
 			} else if existingUser.Role == 0 {
 				log.Printf("User with id : %d enters with role superadmin\n", existingUser.TelegramID)
-				sendMenuForRegularUser(message.Chat.ID, message.From.FirstName)
+				sendMenuForSuperAdminUser(message.Chat.ID, message.From.FirstName)
 				return
 			}
 		}
@@ -161,10 +161,27 @@ func sendMenuForAdminUser(chatID int, name string) {
 		ResizeKeyboard:  true,
 		OneTimeKeyboard: true,
 	}
-	welcomeMsg := fmt.Sprintf("Welcome %s!", name)
+	welcomeMsg := fmt.Sprintf("Welcome to admin panel %s!", name)
 	sendMessageWithKeyboard(chatID, welcomeMsg, keyboard)
 }
-
+func sendMenuForSuperAdminUser(chatID int, name string) {
+	keyboard := ReplyKeyboardMarkupWithLocation{
+		Keyboard: [][]KeyboardButton{
+			{
+				{Text: "Admins"},
+				{Text: "Premium"},
+				{Text: "Clients"},
+				{Text: "ََAdvertisements"},
+				{Text: "Crawler Setting"},
+				{Text: "Monitor"},
+			},
+		},
+		ResizeKeyboard:  true,
+		OneTimeKeyboard: true,
+	}
+	welcomeMsg := fmt.Sprintf("Welcome to super admin panel %s!", name)
+	sendMessageWithKeyboard(chatID, welcomeMsg, keyboard)
+}
 func sendMenuForRegularUserSelectionInlineKeyboard(chatID int, text string) {
 	keyboard := createMainMenuInlineKeyboard()
 	sendMessageWithInlineKeyboard(chatID, text, keyboard)
