@@ -27,9 +27,6 @@ const (
 var (
 	apiURL         string
 	userRepository db.UserRepository
-	firstMenu      = []string{
-		"Search", "Setting", "Populars", "Help",
-	}
 )
 
 func InitUserRepository(dbConnection *gorm.DB) {
@@ -127,28 +124,34 @@ func handleMessage(message *Message) {
 
 		sendMenuForRegularUser(message.Chat.ID, message.From.FirstName)
 		return
-
-	case message.Text == "Choose an option":
-		sendMenuForRegularUserSelectionInlineKeyboard(message.Chat.ID, "Menu item:")
+	// case message.Text ==   // "Share Location":
+	// // 	sendLocationRequest(message.Chat.ID)
+	// // 	return
+	// // case message.Text == "Choose an option":
+	// 	sendMenuForRegularUser(message.Chat.ID, message.From.FirstName)
+	// 	return
 	default:
+		print("******", message.Text)
 		sendMessage(message.Chat.ID, "I didn't understand that command.")
+		return
 	}
 }
 
-func sendMenuForRegularUser(chatID int, name string) {
-	keyboard := ReplyKeyboardMarkupWithLocation{
-		Keyboard: [][]KeyboardButton{
-			{
-				{Text: "Choose an option"},
-				{Text: "Share Location", RequestLocation: true},
-			},
-		},
-		ResizeKeyboard:  true,
-		OneTimeKeyboard: true,
-	}
-	welcomeMsg := fmt.Sprintf("Welcome %s!", name)
-	sendMessageWithKeyboard(chatID, welcomeMsg, keyboard)
-}
+// func sendMenuForRegularUser(chatID int, name string) {
+// 	keyboard := ReplyKeyboardMarkupWithLocation{
+// 		Keyboard: [][]KeyboardButton{
+// 			{
+// 				{Text: "Choose an option"},
+// 				{Text: "Share Location", RequestLocation: true},
+// 			},
+// 		},
+// 		ResizeKeyboard:  true,
+// 		OneTimeKeyboard: true,
+// 	}
+// 	welcomeMsg := fmt.Sprintf("Welcome %s!", name)
+// 	sendMessageWithKeyboard(chatID, welcomeMsg, keyboard)
+// }
+
 func sendMenuForAdminUser(chatID int, name string) {
 	keyboard := ReplyKeyboardMarkupWithLocation{
 		Keyboard: [][]KeyboardButton{
@@ -182,34 +185,25 @@ func sendMenuForSuperAdminUser(chatID int, name string) {
 	welcomeMsg := fmt.Sprintf("Welcome to super admin panel %s!", name)
 	sendMessageWithKeyboard(chatID, welcomeMsg, keyboard)
 }
-func sendMenuForRegularUserSelectionInlineKeyboard(chatID int, text string) {
-	keyboard := createMainMenuInlineKeyboard()
-	sendMessageWithInlineKeyboard(chatID, text, keyboard)
-}
-
-func createMainMenuInlineKeyboard() InlineKeyboardMarkup {
-	rows := [][]InlineKeyboardButton{}
-	row := []InlineKeyboardButton{}
-
-	for i, option := range firstMenu {
-		row = append(row, InlineKeyboardButton{
-			Text: option,
-			Data: option,
-		})
-
-		if (i+1)%4 == 0 {
-			rows = append(rows, row)
-			row = []InlineKeyboardButton{}
-		}
+func sendMenuForRegularUser(chatID int, name string) {
+	keyboard := ReplyKeyboardMarkupWithLocation{
+		Keyboard: [][]KeyboardButton{
+			{
+				{Text: "Search"},
+				{Text: "Setting"},
+				{Text: "Populars"},
+			},
+			{
+				{Text: "Send Location"},
+				{Text: "Help"},
+			},
+		},
+		ResizeKeyboard:  true,
+		OneTimeKeyboard: true,
 	}
-
-	if len(row) > 0 {
-		rows = append(rows, row)
-	}
-
-	return InlineKeyboardMarkup{
-		InlineKeyboard: rows,
-	}
+	welcomeMsg := fmt.Sprintf("Welcome %s!", name)
+	// keyboard := createMainMenuInlineKeyboard()
+	sendMessageWithKeyboard(chatID, welcomeMsg, keyboard)
 }
 
 func handleCallback(callback *CallbackQuery) {
@@ -221,8 +215,22 @@ func handleCallback(callback *CallbackQuery) {
 }
 
 func sendHelpMessage(chatID int, text string) {
-	keyboard := createMainMenuInlineKeyboard()
-	sendMessageWithInlineKeyboard(chatID, text, keyboard)
+	keyboard := ReplyKeyboardMarkupWithLocation{
+		Keyboard: [][]KeyboardButton{
+			{
+				{Text: "Search"},
+				{Text: "Setting"},
+				{Text: "Populars"},
+			},
+			{
+				{Text: "Send Location"},
+				{Text: "Help"},
+			},
+		},
+		ResizeKeyboard:  true,
+		OneTimeKeyboard: true,
+	}
+	sendMessageWithKeyboard(chatID, text, keyboard)
 }
 
 func answerCallbackQuery(callbackID, text string) {
@@ -297,4 +305,22 @@ func sendMessage(chatID int, text string) {
 		return
 	}
 	defer resp.Body.Close()
+}
+func sendLocationRequest(chatID int) {
+	// Set up a keyboard with a location request button
+	keyboard := ReplyKeyboardMarkupWithLocation{
+		Keyboard: [][]KeyboardButton{
+			{
+				KeyboardButton{
+					Text:            "Send your location 📍",
+					RequestLocation: true, // Request location on button click
+				},
+			},
+		},
+		ResizeKeyboard:  true,
+		OneTimeKeyboard: true,
+	}
+
+	// Send message with location request keyboard
+	sendMessageWithKeyboard(chatID, "Please share your location:", keyboard)
 }
