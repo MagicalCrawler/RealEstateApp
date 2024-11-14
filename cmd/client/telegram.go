@@ -59,9 +59,31 @@ func handleMessage(message *Message) {
 			msg = "Error fetching clients: "
 			log.Fatal(msg + err.Error())
 		} else {
-			for _, u := range users {
-				msg += fmt.Sprintf("   ID: %d, TelegramID: %d\n", u.ID, u.TelegramID)
-				msg += fmt.Sprint("-------------------------\n")
+			if len(users) == 0 {
+				msg = "No clients found"
+			} else {
+				for _, u := range users {
+					msg += fmt.Sprintf("   ID: %d, TelegramID: %d\n", u.ID, u.TelegramID)
+					msg += fmt.Sprint("-------------------------\n")
+				}
+			}
+		}
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+	case message.Text == "Admins":
+		msg := "All Admins:\n"
+		users, err := userRepository.FindAllUsersByRole(models.ADMIN)
+		if err != nil {
+			msg = "Error fetching clients: "
+			log.Fatal(msg + err.Error())
+		} else {
+			if len(users) == 0 {
+				msg = "No admins found"
+			} else {
+				for _, u := range users {
+					msg += fmt.Sprintf("   ID: %d, TelegramID: %d\n", u.ID, u.TelegramID)
+					msg += fmt.Sprint("-------------------------\n")
+				}
 			}
 		}
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
