@@ -2,6 +2,9 @@ package client
 
 import (
 	"fmt"
+	"log"
+	"strconv"
+	"strings"
 
 	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/models"
@@ -57,7 +60,20 @@ func handleMessage(message *Message) {
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
 	case message.Text == "Premium":
-		msg := "You entered filters"
+		msg := "Send me user id with pattern👉 \"Id=<number>\""
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+	case strings.Contains(message.Text, "Id="):
+		msg := fmt.Sprintf("User with id :%s changed to Premium client.", message.Text)
+		id, err := strconv.ParseInt(message.Text[3:], 10, 64)
+		if err != nil {
+			msg = "Invalid ID format. Please use 'Id=<number>'."
+		} else {
+			_, err := userRepository.UpdateUserType(uint(id), models.PREMIUM)
+			if err != nil {
+				msg = fmt.Sprintf("Error updating user type: %v", err)
+			}
+		}
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
 	case message.Text == "Clients":
