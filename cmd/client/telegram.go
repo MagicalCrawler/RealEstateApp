@@ -109,9 +109,28 @@ func handleMessage(message *Message) {
 					msg += fmt.Sprint("-------------------------\n")
 				}
 			}
+			msg += "\nEnter 'c' to Create Admin"
 		}
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
+	case message.Text == "c":
+		msg := "Send me new user's ID with pattern \"admin=<number>\""
+
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+	case strings.Contains(message.Text, "admin="):
+		msg := fmt.Sprintf("User with id :%s changed to Admin client.", message.Text[6:])
+		id, err := strconv.ParseInt(message.Text[6:], 10, 64)
+		if err != nil {
+			msg = "Invalid ID format. Please use 'admin=<number>'."
+		} else {
+			_, err := userRepository.UpdateUserRole(uint(id), models.ADMIN)
+			if err != nil {
+				msg = fmt.Sprintf("Error updating user role: %v", err)
+			}
+			// msg += "\nEnter 'c' to Create Admin"
+			sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		}
 	default:
 		msg := "I didn't understand that command."
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))

@@ -16,6 +16,7 @@ type UserRepository interface {
 	FindAllUsersByRole(models.Role) ([]models.User, error)
 	Delete(ID uint) error
 	UpdateUserType(ID uint, Type models.UserType) (models.User, error)
+	UpdateUserRole(ID uint, Role models.Role) (models.User, error)
 }
 
 type UserRepositoryImpl struct {
@@ -98,6 +99,14 @@ func (ur UserRepositoryImpl) Delete(id uint) error {
 func (ur UserRepositoryImpl) UpdateUserType(ID uint, Type models.UserType) (models.User, error) {
 	var user models.User
 	result := ur.dbConnection.Model(&user).Where("id = ?", ID).Where("role = ?", models.USER).Update("type", Type)
+	if result.Error != nil {
+		return user, result.Error
+	}
+	return user, nil
+}
+func (ur UserRepositoryImpl) UpdateUserRole(ID uint, Role models.Role) (models.User, error) {
+	var user models.User
+	result := ur.dbConnection.Model(&user).Where("id = ?", ID).Where("role = ?", models.USER).Update("role", Role)
 	if result.Error != nil {
 		return user, result.Error
 	}
