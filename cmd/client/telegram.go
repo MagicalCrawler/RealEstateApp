@@ -31,10 +31,11 @@ func handleMessage(message *Message) {
 	user := getOrCreateUserRunCommand(message)
 
 	switch {
+	//all users command
 	case message.Text == "/start":
 		sendMessageWithKeyboard(message.Chat.ID, getWelcomeMessage(message.From.FirstName, user.Role), getKeyboard(user.Role))
 		return
-
+		// regular command
 	case message.Text == "Help":
 		msgHelp := `Real Estate Finder Bot!
                     /search to find properties based on filters like price, location, and type.
@@ -55,6 +56,19 @@ func handleMessage(message *Message) {
 		msg := fmt.Sprintf("You entered radius: %s", message.Text[8:])
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
+	case message.Text == "Search":
+		msg := fmt.Sprintf("You entered search ")
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+	case message.Text == "Populars":
+		msg := "You entered populars"
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+	case message.Text == "Setting":
+		msg := "You entered setting"
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+		// admin commands
 	case message.Text == "Filters":
 		msg := "You entered filters"
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
@@ -76,6 +90,12 @@ func handleMessage(message *Message) {
 		}
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
+	case message.Text == "Errors":
+		msg := "You entered errors"
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+
+		return
+	// super-admin and admin command
 	case message.Text == "Clients":
 		msg := "All Clients:\n"
 		users, err := userRepository.FindAllUsersByRole(models.USER)
@@ -94,6 +114,7 @@ func handleMessage(message *Message) {
 		}
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
+	// superadmin commands
 	case message.Text == "Admins":
 		msg := "All Admins:\n"
 		users, err := userRepository.FindAllUsersByRole(models.ADMIN)
@@ -131,6 +152,20 @@ func handleMessage(message *Message) {
 			// msg += "\nEnter 'c' to Create Admin"
 			sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		}
+	case message.Text == "Monitor":
+		msg := "You entered Monitor"
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+	case message.Text == "Advertisements":
+		msg := "You entered Advertisements"
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+	case message.Text == "Crawler Setting":
+		msg := "You entered Crawler Setting"
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+		// premium command
+	///////////////////////////////
 	default:
 		msg := "I didn't understand that command."
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))

@@ -100,6 +100,8 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 				{
 					{Text: "Filters"},
 					{Text: "Premium"},
+					{Text: "Clients"},
+				}, {
 					{Text: "Errors"},
 				},
 			},
@@ -111,14 +113,12 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 			Keyboard: [][]KeyboardButton{
 				{
 					{Text: "Admins"},
-					{Text: "Premium"},
+					{Text: "Monitor"},
 					{Text: "Clients"},
 				},
 				{
-					{Text: "Monitor"},
+
 					{Text: "ََAdvertisements"},
-				},
-				{
 					{Text: "Crawler Setting"},
 				},
 			},
