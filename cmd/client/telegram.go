@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
@@ -33,9 +34,9 @@ func handleMessage(message *Message) {
 
 	case message.Text == "Help":
 		msgHelp := `Real Estate Finder Bot!
-					/search to find properties based on filters like price, location, and type.
-					/notify to get alerts for new listings matching your preferences.
-					/help for more information.`
+                    /search to find properties based on filters like price, location, and type.
+                    /notify to get alerts for new listings matching your preferences.
+                    /help for more information.`
 		sendMessageWithKeyboard(message.Chat.ID, msgHelp, getKeyboard(user.Role))
 		return
 	case message.Text == "Send Location":
@@ -48,6 +49,20 @@ func handleMessage(message *Message) {
 		return
 	case message.Text == "Filters":
 		msg := "You entered filters"
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+	case message.Text == "Clients":
+		msg := "All Clients:\n"
+		users, err := userRepository.FindAll()
+		if err != nil {
+			msg = "Error fetching clients: "
+			log.Fatal(msg + err.Error())
+		} else {
+			for _, u := range users {
+				msg += fmt.Sprintf("   ID: %d, TelegramID: %d\n", u.ID, u.TelegramID)
+				msg += fmt.Sprint("-------------------------\n")
+			}
+		}
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
 	default:
