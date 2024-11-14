@@ -48,11 +48,11 @@ func handleMessage(message *Message) {
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
 	case message.Location.Latitude != 0:
-		msg := fmt.Sprintf("Your selected location is with latitude: %f, and longitude%f👌\n\nNow send me your desired radius with pattern👉 \"rediuse=<number>\"", message.Location.Latitude, message.Location.Longitude)
+		msg := fmt.Sprintf("Your selected location is with latitude: %f, and longitude%f👌\n\nNow send me your desired radius with pattern👉 \"redius=<number>\"", message.Location.Latitude, message.Location.Longitude)
 
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
-	case strings.Contains(message.Text, "rediuse="):
+	case strings.Contains(message.Text, "redius="):
 		msg := fmt.Sprintf("You entered radius: %s", message.Text[8:])
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
