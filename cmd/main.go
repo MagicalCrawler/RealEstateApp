@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/MagicalCrawler/RealEstateApp/cmd/client"
 	"github.com/MagicalCrawler/RealEstateApp/db"
+	"github.com/MagicalCrawler/RealEstateApp/services"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
 )
 
