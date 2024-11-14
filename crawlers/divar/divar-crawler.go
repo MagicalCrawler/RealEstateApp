@@ -21,7 +21,7 @@ type DivarRealEstateCrawler struct {
 // NewDivarRealEstateCrawler creates a new instance of DivarRealEstateCrawler
 func NewDivarRealEstateCrawler() *DivarRealEstateCrawler {
 	return &DivarRealEstateCrawler{
-		baseURL: "https://divar.ir",
+		baseURL: "https://divar.ir/s/tehran/real-estate",
 		userAgents: []string{
 			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36",
 			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
@@ -52,57 +52,9 @@ func (c *DivarRealEstateCrawler) RandomUserAgent() string {
 	return c.userAgents[rand.Intn(len(c.userAgents))]
 }
 
-// GetCities fetches city URLs from the main page
-func (c *DivarRealEstateCrawler) GetCities(ctx context.Context) ([]string, error) {
-	var cityURLs []string
-
-	pw, err := playwright.Run()
-	if err != nil {
-		log.Fatalf("could not start Playwright: %v", err)
-	}
-	defer pw.Stop()
-
-	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
-		Headless: playwright.Bool(true),
-	})
-	if err != nil {
-		log.Fatalf("could not launch browser: %v", err)
-	}
-	defer browser.Close()
-
-	page, err := browser.NewPage()
-	if err != nil {
-		return nil, fmt.Errorf("could not create new page: %w", err)
-	}
-	defer page.Close()
-
-	// Navigate to the base URL and load the page
-	if _, err = page.Goto(c.baseURL); err != nil {
-		return nil, fmt.Errorf("could not navigate to %s: %w", c.baseURL, err)
-	}
-
-	// Adding a short delay to ensure the page fully loads
-	time.Sleep(2 * time.Second)
-
-	// Extracting city links from the page
-	elements, err := page.QuerySelectorAll("a[class*=cities__item]") // Adjust selector based on the actual class of city links
-	if err != nil {
-		return nil, fmt.Errorf("could not get city links: %w", err)
-	}
-
-	for _, element := range elements {
-		href, err := element.GetAttribute("href")
-		if err == nil && strings.HasPrefix(href, "/s/") {
-			cityURLs = append(cityURLs, fmt.Sprintf("%s%s", c.baseURL, href))
-		}
-	}
-
-	return cityURLs, nil
-}
-
-// CrawlCity performs crawling for each city URL
-func (c *DivarRealEstateCrawler) CrawlCity(ctx context.Context, cityURL string, pageLimit int) ([]crawlers.Post, error) {
-	paginationURLs := getPaginationURLs(cityURL, pageLimit)
+// Crawl initiates the crawling process, extracting post links and then details of each post
+func (c *DivarRealEstateCrawler) Crawl(ctx context.Context, pageLimit int) ([]crawlers.Post, error) {
+	paginationURLs := getPaginationURLs(c.baseURL, pageLimit)
 	var allPosts []crawlers.Post
 
 	pw, err := playwright.Run()
@@ -128,19 +80,18 @@ func (c *DivarRealEstateCrawler) CrawlCity(ctx context.Context, cityURL string, 
 		}
 
 		page.SetExtraHTTPHeaders(map[string]string{
-			"User-Agent":      c.RandomUserAgent(),
-			"Accept-Language": "en-US,en;q=0.9",
-			"Referer":         "https://google.com",
-			"Accept-Encoding": "gzip, deflate, br",
+			"User-Agent": c.RandomUserAgent(),
+			"Referer":    "https://google.com",
 		})
 
 		if _, err = page.Goto(pageURL, playwright.PageGotoOptions{
 			WaitUntil: playwright.WaitUntilStateNetworkidle,
+			Timeout:   playwright.Float(90000), // افزایش زمان timeout به 90000 میلی‌ثانیه
 		}); err != nil {
-			return nil, fmt.Errorf("could not navigate to %s: %w", pageURL, err)
+			log.Printf("retrying due to timeout or navigation error for %s: %v", pageURL, err)
+			time.Sleep(5 * time.Second) // تأخیر کوتاه برای کاهش احتمال بلاک شدن
+			continue                    // درخواست را دوباره انجام می‌دهیم
 		}
-
-		time.Sleep(3 * time.Second) // Adjust the delay as needed
 
 		content, err := page.Content()
 		if err != nil {
@@ -153,10 +104,18 @@ func (c *DivarRealEstateCrawler) CrawlCity(ctx context.Context, cityURL string, 
 			return nil, fmt.Errorf("failed to parse HTML from %s: %w", pageURL, err)
 		}
 
-		doc.Find("div.kt-post-card__body").Each(func(i int, s *goquery.Selection) {
-			post := c.extractPostFromSelection(s)
+		// Extract post links
+		postLinks := c.extractPostLinksFromSelection(doc)
+
+		// Crawl each post detail page
+		for _, link := range postLinks {
+			post, err := c.CrawlPostDetails(ctx, link)
+			if err != nil {
+				log.Printf("error crawling post details from %s: %v", link, err)
+				continue
+			}
 			allPosts = append(allPosts, post)
-		})
+		}
 
 		time.Sleep(time.Duration(rand.Intn(7)+3) * time.Second)
 	}
@@ -177,26 +136,124 @@ func getPaginationURLs(base string, limit int) []string {
 	return pages
 }
 
-// extractPostFromSelection extracts post information from a goquery selection
-func (c *DivarRealEstateCrawler) extractPostFromSelection(s *goquery.Selection) crawlers.Post {
-	title := strings.TrimSpace(s.Find("h2.kt-post-card__title").Text())
-	if title == "" {
-		title = "No Title"
+// extractPostLinksFromSelection extracts only post links from the main listing page
+func (c *DivarRealEstateCrawler) extractPostLinksFromSelection(doc *goquery.Document) []string {
+	var postLinks []string
+	doc.Find("div.kt-post-card__body").Each(func(i int, s *goquery.Selection) {
+		link, exists := s.Parent().Attr("href")
+		if exists {
+			postLinks = append(postLinks, fmt.Sprintf("https://divar.ir%s", link))
+		}
+	})
+	return postLinks
+}
+
+// CrawlPostDetails extracts each post details and fill-out model data
+func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, postURL string) (crawlers.Post, error) {
+	var post crawlers.Post
+	pw, err := playwright.Run()
+	if err != nil {
+		return post, fmt.Errorf("could not start Playwright: %v", err)
+	}
+	defer pw.Stop()
+
+	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
+		Headless: playwright.Bool(true),
+	})
+	if err != nil {
+		return post, fmt.Errorf("could not launch browser: %v", err)
+	}
+	defer browser.Close()
+
+	page, err := browser.NewPage()
+	if err != nil {
+		return post, fmt.Errorf("could not create new page: %w", err)
+	}
+	defer page.Close()
+
+	page.SetExtraHTTPHeaders(map[string]string{
+		"User-Agent": c.RandomUserAgent(),
+		"Referer":    "https://google.com",
+	})
+
+	if _, err = page.Goto(postURL, playwright.PageGotoOptions{
+		WaitUntil: playwright.WaitUntilStateNetworkidle,
+		Timeout:   playwright.Float(90000), // افزایش زمان timeout به 90000 میلی‌ثانیه
+	}); err != nil {
+		log.Printf("retrying due to timeout or navigation error for %s: %v", postURL, err)
+		time.Sleep(5 * time.Second) // تأخیر کوتاه برای کاهش احتمال بلاک شدن
 	}
 
-	price := strings.TrimSpace(s.Find("div.kt-post-card__description").Text())
-	if price == "" {
-		price = "No Price"
+	content, err := page.Content()
+	if err != nil {
+		return post, fmt.Errorf("could not get page content: %w", err)
 	}
 
-	link, exists := s.Parent().Attr("href")
-	if !exists {
-		link = "No Link"
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+	if err != nil {
+		return post, fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
-	return crawlers.Post{
-		Title: title,
-		Price: price,
-		Link:  fmt.Sprintf("https://divar.ir%s", link),
-	}
+	// Extract title and description
+	post.Title = strings.TrimSpace(doc.Find("h1.kt-page-title__title").Text())
+	post.Description = strings.TrimSpace(doc.Find("p.kt-description-row__text--primary").Text())
+
+	// Extract ID from the URL (last segment of URL path)
+	splitURL := strings.Split(postURL, "/")
+	post.ID = splitURL[len(splitURL)-1]
+
+	// Extract price, area, rooms, etc. - with conditions for possible variations
+	post.Price = strings.TrimSpace(doc.Find("p.kt-unexpandable-row__value").First().Text())
+	doc.Find("thead + tbody tr.kt-group-row__data-row").Each(func(i int, s *goquery.Selection) {
+		columns := s.Find("td.kt-group-row-item__value.kt-group-row-item--info-row")
+
+		if columns.Length() >= 1 {
+			post.Area = strings.TrimSpace(columns.Eq(0).Text())
+		}
+		if columns.Length() >= 2 {
+			post.YearBuilt = strings.TrimSpace(columns.Eq(1).Text())
+		}
+		if columns.Length() >= 3 {
+			post.Rooms = strings.TrimSpace(columns.Eq(2).Text())
+		}
+	})
+
+	// Extract price per square meter, total price, and floor
+	doc.Find("div.kt-base-row").Each(func(i int, s *goquery.Selection) {
+		title := s.Find("p.kt-unexpandable-row__title").Text()
+		value := s.Find("p.kt-unexpandable-row__value").Text()
+
+		switch strings.TrimSpace(title) {
+		case "قیمت کل":
+			post.TotalPrice = strings.TrimSpace(value)
+		case "قیمت هر متر":
+			post.PricePerSquareMeter = strings.TrimSpace(value)
+		case "طبقه":
+			post.Floor = strings.TrimSpace(value)
+		}
+	})
+
+	var features []string
+	doc.Find("table.kt-group-row").Last().Find("tbody tr.kt-group-row__data-row td.kt-group-row-item__value").Each(func(i int, s *goquery.Selection) {
+		if !s.HasClass("kt-group-row-item--disabled") || s.HasClass("kt-body--stable") {
+			feature := strings.TrimSpace(s.Text())
+			if feature != "" {
+				features = append(features, feature)
+			}
+		}
+	})
+	post.Features = features
+
+	// Extract images
+	var images []string
+	doc.Find("div.kt-base-carousel__slide img.kt-image-block__image").Each(func(i int, s *goquery.Selection) {
+		if src, exists := s.Attr("src"); exists {
+			images = append(images, src)
+		}
+	})
+	post.Images = images
+
+	post.Link = postURL
+
+	return post, nil
 }

@@ -5,10 +5,19 @@ import (
 )
 
 type Post struct {
-	Title  string
-	Price  string
-	Link   string
-	Images []string
+	ID                  string
+	Title               string
+	Price               string
+	Link                string
+	Images              []string
+	Description         string
+	Area                string
+	YearBuilt           string
+	Rooms               string
+	PricePerSquareMeter string
+	TotalPrice          string
+	Floor               string
+	Features            []string
 }
 
 type Crawler interface {
