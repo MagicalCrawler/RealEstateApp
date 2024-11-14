@@ -19,9 +19,9 @@ type DivarRealEstateCrawler struct {
 }
 
 // NewDivarRealEstateCrawler creates a new instance of DivarRealEstateCrawler
-func NewDivarRealEstateCrawler() *DivarRealEstateCrawler {
+func NewDivarRealEstateCrawler(url string) *DivarRealEstateCrawler {
 	return &DivarRealEstateCrawler{
-		baseURL: "https://divar.ir/s/tehran/real-estate",
+		baseURL: url,
 		userAgents: []string{
 			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36",
 			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
@@ -91,11 +91,11 @@ func (c *DivarRealEstateCrawler) Crawl(ctx context.Context, pageLimit int) ([]cr
 
 		if _, err = page.Goto(pageURL, playwright.PageGotoOptions{
 			WaitUntil: playwright.WaitUntilStateNetworkidle,
-			Timeout:   playwright.Float(90000), // افزایش زمان timeout به 90000 میلی‌ثانیه
+			Timeout:   playwright.Float(90000),
 		}); err != nil {
 			log.Printf("retrying due to timeout or navigation error for %s: %v", pageURL, err)
-			time.Sleep(5 * time.Second) // تأخیر کوتاه برای کاهش احتمال بلاک شدن
-			continue                    // درخواست را دوباره انجام می‌دهیم
+			time.Sleep(5 * time.Second)
+			continue
 		}
 
 		content, err := page.Content()
@@ -109,10 +109,8 @@ func (c *DivarRealEstateCrawler) Crawl(ctx context.Context, pageLimit int) ([]cr
 			return nil, fmt.Errorf("failed to parse HTML from %s: %w", pageURL, err)
 		}
 
-		// Extract post links
 		postLinks := c.extractPostLinksFromSelection(doc)
 
-		// Crawl each post detail page
 		for _, link := range postLinks {
 			post, err := c.CrawlPostDetails(ctx, link)
 			if err != nil {
@@ -202,13 +200,11 @@ func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, postURL s
 	splitURL := strings.Split(postURL, "/")
 	post.ID = splitURL[len(splitURL)-1]
 
-	// Extract title and description
 	post.Title = strings.TrimSpace(doc.Find("h1.kt-page-title__title").Text())
 	post.Description = strings.TrimSpace(doc.Find("div.post-page__section--padded").Text())
 
-	// Detect if it's a rental listing by checking for "ودیعه" or "اجاره"
 	isRental := doc.Find("div.kt-base-row:contains('ودیعه')").Length() > 0 || doc.Find("div.kt-base-row:contains('اجاره')").Length() > 0
-	// Extract rental or sale prices based on type
+
 	if isRental {
 		isDailyRental := doc.Find("div:contains('روزانه')").Length() > 0 || doc.Find("div:contains('شب')").Length() > 0
 		if isDailyRental {
@@ -232,7 +228,6 @@ func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, postURL s
 			})
 			post.RentalMetadata = rentalMetadata
 		} else {
-			// Extract rental or sale prices for other types of listings
 			doc.Find("div.kt-base-row").Each(func(i int, s *goquery.Selection) {
 				title := s.Find("p.kt-unexpandable-row__title").Text()
 				value := s.Find("p.kt-unexpandable-row__value").Text()
@@ -269,7 +264,6 @@ func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, postURL s
 		})
 	}
 
-	// Extract area, year built, and rooms
 	doc.Find("thead + tbody tr.kt-group-row__data-row").Each(func(i int, s *goquery.Selection) {
 		columns := s.Find("td.kt-group-row-item__value.kt-group-row-item--info-row")
 
@@ -284,10 +278,9 @@ func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, postURL s
 		}
 	})
 
-	// Extract features
 	var features []string
 	doc.Find("table.kt-group-row").Last().Find("tbody tr.kt-group-row__data-row td.kt-group-row-item__value").Each(func(i int, s *goquery.Selection) {
-		if !s.HasClass("kt-group-row-item--disabled") || s.HasClass("kt-body--stable") {
+		if !s.HasClass("kt-group-row-item--disabled") && s.HasClass("kt-body--stable") {
 			feature := strings.TrimSpace(s.Text())
 			if feature != "" {
 				features = append(features, feature)
@@ -296,7 +289,6 @@ func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, postURL s
 	})
 	post.Features = features
 
-	// Extract images
 	var images []string
 	doc.Find("div.kt-base-carousel__slide img.kt-image-block__image").Each(func(i int, s *goquery.Selection) {
 		if src, exists := s.Attr("src"); exists {
