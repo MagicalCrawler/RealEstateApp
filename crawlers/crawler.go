@@ -4,6 +4,14 @@ import (
 	"context"
 )
 
+type RentalMetadata struct {
+	Capacity        string
+	NormalDayPrice  string
+	WeekendPrice    string
+	HolidayPrice    string
+	ExtraPersonCost string
+}
+
 type Post struct {
 	ID                  string
 	Title               string
@@ -18,6 +26,10 @@ type Post struct {
 	TotalPrice          string
 	Floor               string
 	Features            []string
+	Deposit             string
+	MonthlyRent         string
+	DepositOnRentDesc   string
+	RentalMetadata      *RentalMetadata
 }
 
 type Crawler interface {

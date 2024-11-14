@@ -61,7 +61,12 @@ func (c *DivarRealEstateCrawler) Crawl(ctx context.Context, pageLimit int) ([]cr
 	if err != nil {
 		log.Fatalf("could not start Playwright: %v", err)
 	}
-	defer pw.Stop()
+	defer func(pw *playwright.Playwright) {
+		err := pw.Stop()
+		if err != nil {
+			log.Fatalf("could not close Playwright: %v", err)
+		}
+	}(pw)
 
 	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
 		Headless: playwright.Bool(true),
@@ -178,10 +183,10 @@ func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, postURL s
 
 	if _, err = page.Goto(postURL, playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateNetworkidle,
-		Timeout:   playwright.Float(90000), // افزایش زمان timeout به 90000 میلی‌ثانیه
+		Timeout:   playwright.Float(90000),
 	}); err != nil {
 		log.Printf("retrying due to timeout or navigation error for %s: %v", postURL, err)
-		time.Sleep(5 * time.Second) // تأخیر کوتاه برای کاهش احتمال بلاک شدن
+		time.Sleep(5 * time.Second)
 	}
 
 	content, err := page.Content()
@@ -194,16 +199,77 @@ func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, postURL s
 		return post, fmt.Errorf("failed to parse HTML: %w", err)
 	}
 
-	// Extract title and description
-	post.Title = strings.TrimSpace(doc.Find("h1.kt-page-title__title").Text())
-	post.Description = strings.TrimSpace(doc.Find("p.kt-description-row__text--primary").Text())
-
-	// Extract ID from the URL (last segment of URL path)
 	splitURL := strings.Split(postURL, "/")
 	post.ID = splitURL[len(splitURL)-1]
 
-	// Extract price, area, rooms, etc. - with conditions for possible variations
-	post.Price = strings.TrimSpace(doc.Find("p.kt-unexpandable-row__value").First().Text())
+	// Extract title and description
+	post.Title = strings.TrimSpace(doc.Find("h1.kt-page-title__title").Text())
+	post.Description = strings.TrimSpace(doc.Find("div.post-page__section--padded").Text())
+
+	// Detect if it's a rental listing by checking for "ودیعه" or "اجاره"
+	isRental := doc.Find("div.kt-base-row:contains('ودیعه')").Length() > 0 || doc.Find("div.kt-base-row:contains('اجاره')").Length() > 0
+	// Extract rental or sale prices based on type
+	if isRental {
+		isDailyRental := doc.Find("div:contains('روزانه')").Length() > 0 || doc.Find("div:contains('شب')").Length() > 0
+		if isDailyRental {
+			rentalMetadata := &crawlers.RentalMetadata{}
+			doc.Find("div.kt-base-row").Each(func(i int, s *goquery.Selection) {
+				title := s.Find("p.kt-unexpandable-row__title").Text()
+				value := s.Find("p.kt-unexpandable-row__value").Text()
+
+				switch strings.TrimSpace(title) {
+				case "ظرفیت":
+					rentalMetadata.Capacity = strings.TrimSpace(value)
+				case "روزهای عادی":
+					rentalMetadata.NormalDayPrice = strings.TrimSpace(value)
+				case "آخر هفته":
+					rentalMetadata.WeekendPrice = strings.TrimSpace(value)
+				case "تعطیلات و مناسبت‌ها":
+					rentalMetadata.HolidayPrice = strings.TrimSpace(value)
+				case "هزینهٔ هر نفرِ اضافه":
+					rentalMetadata.ExtraPersonCost = strings.TrimSpace(value)
+				}
+			})
+			post.RentalMetadata = rentalMetadata
+		} else {
+			// Extract rental or sale prices for other types of listings
+			doc.Find("div.kt-base-row").Each(func(i int, s *goquery.Selection) {
+				title := s.Find("p.kt-unexpandable-row__title").Text()
+				value := s.Find("p.kt-unexpandable-row__value").Text()
+
+				switch strings.TrimSpace(title) {
+				case "ودیعه":
+					post.Deposit = strings.TrimSpace(value)
+				case "اجارهٔ ماهانه":
+					post.MonthlyRent = strings.TrimSpace(value)
+				case "قیمت کل":
+					post.TotalPrice = strings.TrimSpace(value)
+				case "قیمت هر متر":
+					post.PricePerSquareMeter = strings.TrimSpace(value)
+				case "طبقه":
+					post.Floor = strings.TrimSpace(value)
+				case "ودیعه و اجاره":
+					post.DepositOnRentDesc = strings.TrimSpace(value)
+				}
+			})
+		}
+	} else {
+		doc.Find("div.kt-base-row").Each(func(i int, s *goquery.Selection) {
+			title := s.Find("p.kt-unexpandable-row__title").Text()
+			value := s.Find("p.kt-unexpandable-row__value").Text()
+
+			switch strings.TrimSpace(title) {
+			case "قیمت کل":
+				post.TotalPrice = strings.TrimSpace(value)
+			case "قیمت هر متر":
+				post.PricePerSquareMeter = strings.TrimSpace(value)
+			case "طبقه":
+				post.Floor = strings.TrimSpace(value)
+			}
+		})
+	}
+
+	// Extract area, year built, and rooms
 	doc.Find("thead + tbody tr.kt-group-row__data-row").Each(func(i int, s *goquery.Selection) {
 		columns := s.Find("td.kt-group-row-item__value.kt-group-row-item--info-row")
 
@@ -218,21 +284,7 @@ func (c *DivarRealEstateCrawler) CrawlPostDetails(ctx context.Context, postURL s
 		}
 	})
 
-	// Extract price per square meter, total price, and floor
-	doc.Find("div.kt-base-row").Each(func(i int, s *goquery.Selection) {
-		title := s.Find("p.kt-unexpandable-row__title").Text()
-		value := s.Find("p.kt-unexpandable-row__value").Text()
-
-		switch strings.TrimSpace(title) {
-		case "قیمت کل":
-			post.TotalPrice = strings.TrimSpace(value)
-		case "قیمت هر متر":
-			post.PricePerSquareMeter = strings.TrimSpace(value)
-		case "طبقه":
-			post.Floor = strings.TrimSpace(value)
-		}
-	})
-
+	// Extract features
 	var features []string
 	doc.Find("table.kt-group-row").Last().Find("tbody tr.kt-group-row__data-row td.kt-group-row-item__value").Each(func(i int, s *goquery.Selection) {
 		if !s.HasClass("kt-group-row-item--disabled") || s.HasClass("kt-body--stable") {
