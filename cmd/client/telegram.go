@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
@@ -39,11 +40,16 @@ func handleMessage(message *Message) {
 		sendMessageWithKeyboard(message.Chat.ID, msgHelp, getKeyboard(user.Role))
 		return
 	case message.Text == "Send Location":
-		msg := "You can send me location with your telegram attachment"
+		msg := "You can send me location with your telegram attachment.."
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
 	case message.Location.Latitude != 0:
-		msg := fmt.Sprintf("Your selected location is with latitude: %d, and longitude%d", message.Location.Latitude, message.Location.Longitude)
+		msg := fmt.Sprintf("Your selected location is with latitude: %f, and longitude%f👌\n\nNow send me your desired radius with pattern👉 \"rediuse=<number>\"", message.Location.Latitude, message.Location.Longitude)
+
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
+	case strings.Contains(message.Text, "rediuse="):
+		msg := fmt.Sprintf("You entered radius: %s", message.Text[8:])
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
 	case message.Text == "Filters":
