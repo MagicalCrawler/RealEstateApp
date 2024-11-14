@@ -6,7 +6,7 @@ import (
 )
 
 type Post struct {
-	UniqueCode string              `gorm:"not null"`
+	UniqueCode string              `gorm:"not null;unique"`
 	Website    types.WebsiteSource `gorm:"not nll;type:string"`
 	WatchedNum uint
 	gorm.Model

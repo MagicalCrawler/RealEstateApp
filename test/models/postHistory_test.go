@@ -1,6 +1,10 @@
 package models
 
 import (
+	"errors"
+	"fmt"
+	"github.com/MagicalCrawler/RealEstateApp/db"
+	"gorm.io/gorm"
 	"testing"
 
 	"github.com/MagicalCrawler/RealEstateApp/models"
@@ -47,16 +51,17 @@ func TestCrawlHistory(t *testing.T) {
 func TestInsertPostSimple(t *testing.T) {
 	clearData()
 	defer clearData()
+	postRepository := db.NewPostRepository(dbConnection)
 	crawlInfo := models.CrawlHistory{}
 	if err := dbConnection.Create(&crawlInfo).Error; err != nil {
 		t.Fatalf(`Insert Crawl History error: %v`, err)
 	}
-	post := models.Post{
-		UniqueCode: "qweqwe",
+
+	post, err := postRepository.PostSaving("qweqwe", types.Divar)
+	if err != nil {
+		t.Fatalf("%v", err)
 	}
-	if err := dbConnection.Create(&post).Error; err != nil {
-		t.Fatalf(`Insert Post Failed: %v`, err)
-	}
+
 	postHistory := models.PostHistory{
 		Post:           post,
 		Title:          "test-title",
@@ -77,9 +82,9 @@ func TestInsertPostSimple(t *testing.T) {
 		CrawlHistoryID: crawlInfo.ID,
 	}
 
-	err := dbConnection.Create(&postHistory).Error
-	if err != nil {
-		t.Fatalf(`Insert PostHistory Failed: %v`, err)
+	errr := dbConnection.Create(&postHistory).Error
+	if errr != nil {
+		t.Fatalf(`Insert PostHistory Failed: %v`, errr)
 	}
 }
 
@@ -109,4 +114,20 @@ func TestInsertExistPost(t *testing.T) {
 		}
 	}
 
+}
+
+func Test(t *testing.T) {
+	postRepository := db.NewPostRepository(dbConnection)
+	myPost := models.Post{
+		UniqueCode: "wZQUyrBv",
+	}
+	var post models.Post
+	var postHistory models.PostHistory
+	post, postHistory, err := postRepository.Find(myPost.UniqueCode)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("Not Found")
+	} else {
+		fmt.Println(post)
+		fmt.Println(postHistory)
+	}
 }
