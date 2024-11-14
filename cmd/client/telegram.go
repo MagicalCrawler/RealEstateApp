@@ -52,6 +52,10 @@ func handleMessage(message *Message) {
 		msg := "You entered filters"
 		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 		return
+	case message.Text == "Premium":
+		msg := "You entered filters"
+		sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+		return
 	case message.Text == "Clients":
 		msg := "All Clients:\n"
 		users, err := userRepository.FindAllUsersByRole(models.USER)
