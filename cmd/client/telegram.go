@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/MagicalCrawler/RealEstateApp/db"
+	"github.com/MagicalCrawler/RealEstateApp/models"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
 	"gorm.io/gorm"
 )
@@ -53,7 +54,7 @@ func handleMessage(message *Message) {
 		return
 	case message.Text == "Clients":
 		msg := "All Clients:\n"
-		users, err := userRepository.FindAll()
+		users, err := userRepository.FindAllUsersByRole(models.USER)
 		if err != nil {
 			msg = "Error fetching clients: "
 			log.Fatal(msg + err.Error())

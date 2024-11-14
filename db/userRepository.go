@@ -13,6 +13,7 @@ type UserRepository interface {
 	Find(ID uint) (models.User, error)
 	FindByTelegramID(TelegramID uint64) (models.User, error)
 	FindAll() ([]models.User, error)
+	FindAllUsersByRole(models.Role) ([]models.User, error)
 	Delete(ID uint) error
 }
 
@@ -58,6 +59,16 @@ func (ur UserRepositoryImpl) FindByTelegramID(TelegramID uint64) (models.User, e
 func (ur UserRepositoryImpl) FindAll() ([]models.User, error) {
 	var users []models.User
 	result := ur.dbConnection.Find(&users)
+	if result.Error != nil {
+		fmt.Println("error occurred")
+		return users, result.Error // Return the error if any
+	}
+	// fmt.Println(result.RowsAffected)
+	return users, nil
+}
+func (ur UserRepositoryImpl) FindAllUsersByRole(role models.Role) ([]models.User, error) {
+	var users []models.User
+	result := ur.dbConnection.Where("role = ?", role).Find(&users)
 	if result.Error != nil {
 		fmt.Println("error occurred")
 		return users, result.Error // Return the error if any
