@@ -29,7 +29,7 @@ func getOrCreateUserRunCommand(message *Message) models.User {
 	if user == empty_user {
 		// If the user does not exist, create a new user
 		user = models.User{TelegramID: uint64(message.From.ID), Role: models.Role(models.USER)}
-		log.Println("User with id : %d created with role regular", message.From.ID)
+		log.Printf("User with id : %d created with role regular", message.From.ID)
 		_, err = userRepository.Save(user)
 		if err != nil {
 			log.Printf("Error saving new user: %v", err)
@@ -159,31 +159,17 @@ func getWelcomeMessage(name string, role models.Role) string {
 	case role == models.USER:
 		return fmt.Sprintf("Welcome %s!", name)
 	case role == models.ADMIN:
-		return fmt.Sprintf("Hi %s\nWelcome to superadmin panel !", name)
-	case role == models.SUPER_ADMIN:
 		return fmt.Sprintf("Hi %s\nWelcome to admin panel !", name)
+	case role == models.SUPER_ADMIN:
+		return fmt.Sprintf("Hi %s\nWelcome to superadmin panel !", name)
 	default:
 		return "Welcome!"
 	}
 }
 
 func sendHelpMessage(chatID int, text string) {
-	keyboard := ReplyKeyboardMarkupWithLocation{
-		Keyboard: [][]KeyboardButton{
-			{
-				{Text: "Search"},
-				{Text: "Setting"},
-				{Text: "Populars"},
-			},
-			{
-				{Text: "Send Location"},
-				{Text: "Help"},
-			},
-		},
-		ResizeKeyboard:  true,
-		OneTimeKeyboard: true,
-	}
-	sendMessageWithKeyboard(chatID, text, keyboard)
+
+	sendMessageWithKeyboard(chatID, text, getKeyboard(models.USER))
 }
 
 func answerCallbackQuery(callbackID, text string) {
