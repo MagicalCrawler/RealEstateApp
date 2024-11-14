@@ -5,6 +5,7 @@ import (
 	// "os"
 
 	"errors"
+
 	"gorm.io/gorm"
 
 	"testing"
@@ -82,6 +83,45 @@ func TestInsertAndDeleteUserWithRepository(t *testing.T) {
 	}
 	_, err := userRepository.Find(user.ID)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf(`Find User Failed: %v`, err)
+	}
+
+	user, err = userRepository.Save(user)
+	if err != nil {
+		t.Fatalf(`Insert User Failed: %v`, err)
+	}
+
+	user, err = userRepository.Find(user.ID)
+	if err != nil {
+		t.Fatalf(`Find User Failed: %v`, err)
+	}
+
+	err = dbConnection.Delete(&user, user.ID).Error
+	if err != nil {
+		t.Fatalf(`Delete User Failed: %v`, err)
+	}
+	user, err = userRepository.Find(user.ID)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf(`Find User Failed: %v`, err)
+	}
+}
+func TestInsertAndFindByTelegramIDUserWithRepository(t *testing.T) {
+	clearData()
+	defer clearData()
+
+	userRepository := db.CreateNewUserRepository(dbConnection)
+
+	user := models.User{
+		TelegramID: 1,
+		Role:       models.ADMIN,
+	}
+	_, err := userRepository.FindByTelegramID(user.TelegramID)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf(`Find User Failed: %v`, err)
+	}
+	u, err := userRepository.FindByTelegramID(1)
+	empty_user := models.User{}
+	if !errors.Is(err, nil) && u != empty_user {
 		t.Fatalf(`Find User Failed: %v`, err)
 	}
 
