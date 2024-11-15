@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log/slog"
+
 	"github.com/MagicalCrawler/RealEstateApp/cmd/client"
 	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
@@ -8,12 +10,14 @@ import (
 
 func main() {
 
-	// Load environment variables
+	slog.Info("Load environment variables")
 	utils.LoadEnvFile()
 
-	// Initialize DB connection
+	logger := utils.MainLogger()
+
+	logger.Debug("Initialize DB connection")
 	dbConnection := db.NewConnection()
 
-	// Run the Telegram bot
+	logger.Debug("Run the Telegram bot")
 	client.Run(dbConnection)
 }
