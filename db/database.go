@@ -49,6 +49,7 @@ func seedSuperAdminUser(datab *gorm.DB) {
 }
 
 func postsSeeds(datab *gorm.DB) {
+	postRepository := NewPostRepository(datab)
 	crawlInfo := models.CrawlHistory{}
 	if err := datab.Create(&crawlInfo).Error; err != nil {
 		fmt.Printf("Could not seed crawl history (%v): %v", crawlInfo, err)
@@ -57,7 +58,7 @@ func postsSeeds(datab *gorm.DB) {
 		UniqueCode: "wZ0kfXs_",
 	}
 
-	if err := PostIsExist(datab, post1); err == false {
+	if err := postRepository.PostIsExist(post1); err == false {
 		datab.Create(&post1)
 	} else {
 		log.Println("Post already exists")
@@ -85,7 +86,7 @@ func postsSeeds(datab *gorm.DB) {
 		CrawlHistoryID: crawlInfo.ID,
 	}
 
-	if err := PostHistoryIsExist(datab, postHistory1); err == false {
+	if err := postRepository.PostHistoryIsExist(postHistory1); err == false {
 		datab.Create(&postHistory1)
 	} else {
 		log.Println("PostHistory already exists")
@@ -94,7 +95,7 @@ func postsSeeds(datab *gorm.DB) {
 	post2 := models.Post{
 		UniqueCode: "wZ0o_N3w",
 	}
-	if err := PostIsExist(datab, post2); err == false {
+	if err := postRepository.PostIsExist(post2); err == false {
 		datab.Create(&post2)
 	} else {
 		log.Println("Post already exists")
@@ -122,12 +123,12 @@ func postsSeeds(datab *gorm.DB) {
 		CrawlHistory:   crawlInfo,
 		CrawlHistoryID: crawlInfo.ID,
 	}
-	if err := PostHistoryIsExist(datab, postHistory2); err == false {
+	if err := postRepository.PostHistoryIsExist(postHistory2); err == false {
 		datab.Create(&postHistory2)
 	}
 
 	post3 := models.Post{UniqueCode: "wZ0YoPIi"}
-	if err := PostIsExist(datab, post3); err == false {
+	if err := postRepository.PostIsExist(post3); err == false {
 		datab.Create(&post3)
 	} else {
 		log.Printf("Post already exists")
@@ -154,14 +155,14 @@ func postsSeeds(datab *gorm.DB) {
 		CrawlHistory:   crawlInfo,
 		CrawlHistoryID: crawlInfo.ID,
 	}
-	if err := PostHistoryIsExist(datab, postHistory3); err == false {
+	if err := postRepository.PostHistoryIsExist(postHistory3); err == false {
 		datab.Create(&postHistory3)
 	} else {
 		log.Printf("PostHistory already exists")
 	}
 
 	post4 := models.Post{UniqueCode: "wZQUyrBv"}
-	if err := PostIsExist(datab, post4); err == false {
+	if err := postRepository.PostIsExist(post4); err == false {
 		datab.Create(&post4)
 	} else {
 		log.Printf("Post already exists")
@@ -188,14 +189,14 @@ func postsSeeds(datab *gorm.DB) {
 		CrawlHistory:   crawlInfo,
 		CrawlHistoryID: crawlInfo.ID,
 	}
-	if err := PostHistoryIsExist(datab, postHistory4); err == false {
+	if err := postRepository.PostHistoryIsExist(postHistory4); err == false {
 		datab.Create(&postHistory4)
 	} else {
 		log.Printf("PostHistory already exists")
 	}
 
 	post5 := models.Post{UniqueCode: "wZ0ATY3W"}
-	if err := PostIsExist(datab, post5); err == false {
+	if err := postRepository.PostIsExist(post5); err == false {
 		datab.Create(&post5)
 	} else {
 		log.Printf("Post already exists")
@@ -222,14 +223,14 @@ func postsSeeds(datab *gorm.DB) {
 		CrawlHistory:   crawlInfo,
 		CrawlHistoryID: crawlInfo.ID,
 	}
-	if err := PostHistoryIsExist(datab, postHistory5); err == false {
+	if err := postRepository.PostHistoryIsExist(postHistory5); err == false {
 		datab.Create(&postHistory5)
 	} else {
 		log.Printf("PostHistory already exists")
 	}
 
 	post6 := models.Post{UniqueCode: "wZyQVpfx"}
-	if err := PostIsExist(datab, post6); err == false {
+	if err := postRepository.PostIsExist(post6); err == false {
 		datab.Create(&post6)
 	} else {
 		log.Printf("Post already exists")
@@ -256,7 +257,7 @@ func postsSeeds(datab *gorm.DB) {
 		CrawlHistory:   crawlInfo,
 		CrawlHistoryID: crawlInfo.ID,
 	}
-	if err := PostHistoryIsExist(datab, postHistory6); err == false {
+	if err := postRepository.PostHistoryIsExist(postHistory6); err == false {
 		datab.Create(&postHistory6)
 	} else {
 		log.Printf("PostHistory already exists")

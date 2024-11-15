@@ -28,4 +28,9 @@ type PostHistory struct {
 	Description    string `gorm:"type:text"`
 	CrawlHistory   CrawlHistory
 	CrawlHistoryID uint
+	Capacity       string
+	NormalDays     string
+	Weekend        string
+	Holidays       string
+	CostPerPerson  string
 }

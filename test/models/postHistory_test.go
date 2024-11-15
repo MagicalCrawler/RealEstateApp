@@ -82,9 +82,9 @@ func TestInsertPostSimple(t *testing.T) {
 		CrawlHistoryID: crawlInfo.ID,
 	}
 
-	errr := dbConnection.Create(&postHistory).Error
-	if errr != nil {
-		t.Fatalf(`Insert PostHistory Failed: %v`, errr)
+	newerr := dbConnection.Create(&postHistory).Error
+	if newerr != nil {
+		t.Fatalf(`Insert PostHistory Failed: %v`, newerr)
 	}
 }
 
@@ -116,14 +116,14 @@ func TestInsertExistPost(t *testing.T) {
 
 }
 
-func Test(t *testing.T) {
+func TestFindByUnicode(t *testing.T) {
 	postRepository := db.NewPostRepository(dbConnection)
 	myPost := models.Post{
 		UniqueCode: "wZQUyrBv",
 	}
 	var post models.Post
 	var postHistory models.PostHistory
-	post, postHistory, err := postRepository.Find(myPost.UniqueCode)
+	post, postHistory, err := postRepository.FindByUnicode(myPost.UniqueCode)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("Not Found")
 	} else {
