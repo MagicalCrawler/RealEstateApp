@@ -45,7 +45,7 @@ func (cmd *StartCommand) Execute(message *Message, user *models.User) {
 }
 
 func (cmd *StartCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER}
+	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
 }
 
 //////////////////////////////////////
@@ -82,7 +82,7 @@ func (cmd *SettingCommand) Execute(message *Message, user *models.User) {
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *SettingCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.USER}
 }
 
 // //////////////////////////////////
@@ -92,7 +92,6 @@ type HelpCommand struct{}
 func (cmd *HelpCommand) Execute(message *Message, user *models.User) {
 	msg := `Real Estate Finder Bot!
                     /search to find properties based on filters like price, location, and type.
-                    /notify to get alerts for new listings matching your preferences.
                     /help for more information.`
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }

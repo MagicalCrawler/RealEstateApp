@@ -1,9 +1,10 @@
 package client
 
 import (
-	"fmt"
-
+	"context"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/models"
@@ -27,9 +28,12 @@ func Run(dbConnection *gorm.DB) {
 	apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 	initializeCommands()
 
-	go pollUpdates()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	fmt.Println("Bot is running...")
+	go pollUpdates(ctx)
+
+	log.Println("Bot is running...")
 	select {}
 }
 func isRoleAllowed(userRole models.Role, allowedRoles []models.Role) bool {
@@ -39,6 +43,25 @@ func isRoleAllowed(userRole models.Role, allowedRoles []models.Role) bool {
 		}
 	}
 	return false
+}
+func timedGoroutine() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				// Cleanup logic when the context is canceled
+				log.Println("Goroutine finished after timeout.")
+				return
+			default:
+				// Simulate some work
+				time.Sleep(1 * time.Second)
+				log.Println("Goroutine is running.")
+			}
+		}
+	}(ctx)
 }
 func handleMessage(message *Message) {
 	deleteMessage(message.Chat.ID, message.MessageID-1)
