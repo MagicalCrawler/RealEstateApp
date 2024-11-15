@@ -3,8 +3,10 @@ package db
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/MagicalCrawler/RealEstateApp/models"
+	"github.com/MagicalCrawler/RealEstateApp/utils"
 	"gorm.io/gorm"
 )
 
@@ -18,14 +20,18 @@ type UserRepository interface {
 
 type UserRepositoryImpl struct {
 	dbConnection *gorm.DB
+	logger *slog.Logger
 }
 
 func CreateNewUserRepository(dbConnection *gorm.DB) UserRepository {
-	return UserRepositoryImpl{dbConnection: dbConnection}
+	return UserRepositoryImpl{dbConnection: dbConnection, logger: utils.NewLogger("database")}
 }
 
 func (ur UserRepositoryImpl) Save(user models.User) (models.User, error) {
 	err := ur.dbConnection.Create(&user).Error
+	if err != nil {
+		ur.logger.Error("Insert User Failed: %v", slog.Attr{Key: "err", Value: slog.AnyValue(err)})
+	}
 	return user, err
 }
 
