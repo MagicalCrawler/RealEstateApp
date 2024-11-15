@@ -2,7 +2,6 @@ package crawlers
 
 import (
 	"context"
-	"time"
 )
 
 type RentalMetadata struct {
@@ -16,6 +15,7 @@ type RentalMetadata struct {
 type Post struct {
 	ID          string
 	Title       string
+	City        City
 	Price       string
 	Link        string
 	Images      []string
@@ -46,17 +46,12 @@ type CityResponse struct {
 	Cities []City `json:"cities"`
 }
 
-// CrawlerMetadata represents metadata information for each crawler instance
-type CrawlerMetadata struct {
-	CrawlerID     int
-	City          City
-	Successful    bool
-	StartTime     time.Time
-	EndTime       time.Time
-	ExecutionTime time.Duration
-	CPUUsage      float64
-	MemoryUsage   float64
-	Posts         []Post
+// SingleCrawlerData represents metadata information for each crawler instance
+type SingleCrawlerData struct {
+	Successful  bool
+	CPUUsage    float64
+	MemoryUsage float64
+	Posts       []Post
 }
 
 type Crawler interface {

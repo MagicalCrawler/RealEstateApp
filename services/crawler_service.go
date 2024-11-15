@@ -20,6 +20,16 @@ const (
 	maxRetries     = 3
 )
 
+type CrawlerSession struct {
+	TotalPosts      []crawlers.Post
+	TotalCPU        float64
+	TotalMemory     float64
+	StartTime       time.Time
+	EndTime         time.Time
+	ExecutionTime   time.Duration
+	SuccessfulCount int
+}
+
 func ChunkCities(cities []crawlers.City, chunkSize int) [][]crawlers.City {
 	var chunks [][]crawlers.City
 	for i := 0; i < len(cities); i += chunkSize {
@@ -43,35 +53,71 @@ func StartCrawlers() {
 
 	for {
 		log.Println("Starting crawlers...")
+		session := CrawlerSession{}
 
 		chunkedCities := ChunkCities(cities, 10)
 
+		startTime := time.Now()
+
 		for _, cityChunk := range chunkedCities {
 			var wg sync.WaitGroup
+			ctx, cancel := context.WithCancel(context.Background())
 
-			for i, city := range cityChunk {
+			var avgCPU, avgMemory float64
+			monitorDone := make(chan struct{})
+			go func() {
+				defer close(monitorDone)
+				avgCPU, avgMemory, _ = monitorResources(ctx, sampleInterval)
+			}()
+
+			for _, city := range cityChunk {
 				wg.Add(1)
-				go func(crawlerID int, city crawlers.City) {
+				go func(city crawlers.City) {
 					defer wg.Done()
-					log.Printf("Starting crawler #%d for city %s", crawlerID, city.Name)
-					crawlerMetadata := runSingleCrawler(crawlerID, city)
-					saveMetadataToFile(crawlerMetadata)
-					log.Printf("Crawler #%d completed for city %s", crawlerID, city.Name)
-				}(i+1, city)
+					log.Printf("Starting crawler for city %s", city.Name)
+					crawlerMetadata := runSingleCrawler(city)
+					if crawlerMetadata.Successful {
+						session.TotalPosts = append(session.TotalPosts, crawlerMetadata.Posts...)
+						session.SuccessfulCount++
+					}
+					log.Printf("Crawler; completed for city %s", city.Name)
+				}(city)
 			}
 
 			wg.Wait()
-			log.Println("Chunk completed. Moving to next chunk...")
 
+			cancel()
+			<-monitorDone
+
+			session.TotalCPU += avgCPU
+			session.TotalMemory += avgMemory
+
+			log.Println("Chunk completed. Moving to next chunk...")
 			time.Sleep(5 * time.Second)
 		}
+
+		endTime := time.Now()
+		executionTime := endTime.Sub(startTime)
+
+		session.StartTime = startTime
+		session.EndTime = endTime
+		session.ExecutionTime = executionTime
+
+		session.TotalCPU /= float64(len(chunkedCities))
+		session.TotalMemory /= float64(len(chunkedCities))
+
+		saveSessionData(session)
 		log.Println("All crawlers completed. Waiting for next cycle...")
 		<-ticker.C
 	}
 }
 
 func monitorResources(ctx context.Context, sampleInterval time.Duration) (float64, float64, error) {
-	var cpuSamples, memSamples []float64
+	var (
+		cpuSamples []float64
+		memSamples []float64
+	)
+
 	ticker := time.NewTicker(sampleInterval)
 	defer ticker.Stop()
 
@@ -79,14 +125,15 @@ func monitorResources(ctx context.Context, sampleInterval time.Duration) (float6
 		select {
 		case <-ctx.Done():
 			return calculateAverage(cpuSamples), calculateAverage(memSamples), nil
-
 		case <-ticker.C:
 			cpuPercent, err := cpu.Percent(0, false)
 			if err != nil {
 				log.Printf("Error getting CPU usage: %v", err)
 				continue
 			}
-			cpuSamples = append(cpuSamples, cpuPercent[0])
+			if len(cpuPercent) > 0 {
+				cpuSamples = append(cpuSamples, cpuPercent[0])
+			}
 
 			memStat, err := mem.VirtualMemory()
 			if err != nil {
@@ -109,40 +156,21 @@ func calculateAverage(samples []float64) float64 {
 	return sum / float64(len(samples))
 }
 
-func runSingleCrawler(crawlerID int, city crawlers.City) crawlers.CrawlerMetadata {
+func runSingleCrawler(city crawlers.City) crawlers.SingleCrawlerData {
 	var (
-		posts       []crawlers.Post
-		successful  bool
-		attempts    int
-		totalCPU    float64
-		totalMemory float64
+		posts      []crawlers.Post
+		successful bool
+		attempts   int
 	)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	cityURL := fmt.Sprintf("https://divar.ir/s/%s/real-estate", city.Slug)
-	startTime := time.Now()
 
 	for attempts = 0; attempts < maxRetries; attempts++ {
-		resourceCtx, resourceCancel := context.WithCancel(ctx)
-
-		var (
-			averageCPUUsage, averageMemoryUsage float64
-			monitorErr                          error
-		)
-
-		go func() {
-			averageCPUUsage, averageMemoryUsage, monitorErr = monitorResources(resourceCtx, sampleInterval)
-		}()
-
 		crawler := divar.NewDivarRealEstateCrawler(cityURL)
-		result, err := crawler.Crawl(ctx, 1)
-		resourceCancel()
-
-		if monitorErr != nil {
-			log.Printf("Error during resource monitoring for attempt %d: %v", attempts+1, monitorErr)
-		}
+		result, err := crawler.Crawl(2, city)
 
 		if err != nil {
 			log.Printf("Error crawling city %s on attempt %d: %v", city.Name, attempts+1, err)
@@ -152,47 +180,30 @@ func runSingleCrawler(crawlerID int, city crawlers.City) crawlers.CrawlerMetadat
 		if len(result) > 0 {
 			successful = true
 			posts = append(posts, result...)
-			totalCPU += averageCPUUsage
-			totalMemory += averageMemoryUsage
 			break
 		}
 
 		log.Printf("No posts found for city %s on attempt %d, retrying...", city.Name, attempts+1)
-		totalCPU += averageCPUUsage
-		totalMemory += averageMemoryUsage
 		time.Sleep(5 * time.Second)
 	}
 
-	endTime := time.Now()
-	executionTime := endTime.Sub(startTime)
-
-	averageCPUUsage := totalCPU / float64(attempts)
-	averageMemoryUsage := totalMemory / float64(attempts)
-
-	return crawlers.CrawlerMetadata{
-		CrawlerID:     crawlerID,
-		City:          city,
-		StartTime:     startTime,
-		EndTime:       endTime,
-		ExecutionTime: executionTime,
-		CPUUsage:      averageCPUUsage,
-		MemoryUsage:   averageMemoryUsage,
-		Posts:         posts,
-		Successful:    successful,
+	return crawlers.SingleCrawlerData{
+		Posts:      posts,
+		Successful: successful,
 	}
 }
 
-func saveMetadataToFile(metadata crawlers.CrawlerMetadata) {
-	filename := fmt.Sprintf("crawler_metadata_%s_%d.json", metadata.City.Slug, metadata.CrawlerID)
+func saveSessionData(session CrawlerSession) {
+	filename := fmt.Sprintf("crawler_session_%d.json", time.Now().Unix())
 	file, err := os.Create(filename)
 	if err != nil {
-		log.Fatalf("Failed to create metadata file: %v", err)
+		log.Fatalf("Failed to create session file: %v", err)
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(metadata); err != nil {
-		log.Fatalf("Failed to write metadata to file: %v", err)
+	if err := encoder.Encode(session); err != nil {
+		log.Fatalf("Failed to write session data to file: %v", err)
 	}
 }

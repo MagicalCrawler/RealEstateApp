@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/MagicalCrawler/RealEstateApp/utils"
 	"net/http"
 	"sync"
 	"time"
@@ -43,9 +44,22 @@ func fetchCitiesFromAPIWithCache() ([]crawlers.City, error) {
 		return nil, fmt.Errorf("failed to decode city response: %w", err)
 	}
 
-	// به‌روزرسانی داده‌ها و تنظیم اعتبار کش
 	cityCache = cityResponse.Cities
 	cacheExpiration = time.Now().Add(cacheDuration)
 
-	return cityCache, nil
+	provincialCenters, err := utils.LoadAppSettingsFile()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch provincial centers: %w", err)
+	}
+	var filteredCities []crawlers.City
+	for _, city := range cityResponse.Cities {
+		for _, center := range provincialCenters {
+			if city.Name == center.Name {
+				filteredCities = append(filteredCities, city)
+				break
+			}
+		}
+	}
+
+	return filteredCities, nil
 }
