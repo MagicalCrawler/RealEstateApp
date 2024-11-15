@@ -130,7 +130,7 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 			Keyboard: [][]KeyboardButton{
 				{
 					{Text: "Search"},
-					{Text: "Filters"},
+					{Text: "Filter"},
 				},
 				{
 					{Text: "Setting"},
