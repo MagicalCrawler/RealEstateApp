@@ -5,6 +5,7 @@ import (
 
 	"github.com/MagicalCrawler/RealEstateApp/cmd/client"
 	"github.com/MagicalCrawler/RealEstateApp/db"
+	"github.com/MagicalCrawler/RealEstateApp/services"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
 )
 
@@ -18,6 +19,12 @@ func main() {
 	logger.Debug("Initialize DB connection")
 	dbConnection := db.NewConnection()
 
-	logger.Debug("Run the Telegram bot")
+  logger.Debug("Initialize crawler service jobs")
+	crawlerService := services.NewCrawlerService()
+	crawlerService.Start()
+
+  logger.Debug("Run the Telegram bot")
 	client.Run(dbConnection)
+
+	select {}
 }
