@@ -2,16 +2,11 @@ package crawlers
 
 import (
 	"context"
+	crawlerModels "github.com/MagicalCrawler/RealEstateApp/models/crawler"
 )
 
-type Post struct {
-	Title  string
-	Price  string
-	Link   string
-	Images []string
-}
-
+// Crawler is the interface that all crawler implementations must satisfy
 type Crawler interface {
-	Crawl(ctx context.Context) ([]Post, error)
-	CrawlPostDetails(ctx context.Context, post Post) (Post, error)
+	Crawl(ctx context.Context, city crawlerModels.City) ([]crawlerModels.Post, error)
+	CrawlPostDetails(ctx context.Context, postURL string) (crawlerModels.Post, error)
 }
