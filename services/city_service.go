@@ -21,7 +21,7 @@ type CityService struct {
 // NewCityService creates a new instance of CityService
 func NewCityService() *CityService {
 	return &CityService{
-		cacheDuration: 30 * time.Minute,
+		cacheDuration: 6 * time.Hour,
 	}
 }
 
@@ -34,7 +34,8 @@ func (s *CityService) GetCities() ([]crawlerModels.City, error) {
 		return s.cache, nil
 	}
 
-	resp, err := http.Get("https://api.divar.ir/v8/places/cities?level=all")
+	divarAllCityAPIAddress := utils.GetConfig("API_CITIES_URL")
+	resp, err := http.Get(divarAllCityAPIAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch cities: %w", err)
 	}

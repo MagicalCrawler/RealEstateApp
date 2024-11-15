@@ -22,7 +22,7 @@ type PostHistory struct {
 	Age            uint8
 	FloorsNum      uint8
 	HasStorage     bool
-	HsaParking     bool
+	HasParking     bool
 	HasElevator    bool
 	ImageURL       string `gorm:"type:text"`
 	Description    string `gorm:"type:text"`

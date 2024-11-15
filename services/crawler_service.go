@@ -6,9 +6,15 @@ import (
 	"fmt"
 	"github.com/MagicalCrawler/RealEstateApp/crawlers"
 	"github.com/MagicalCrawler/RealEstateApp/crawlers/divar"
+	"github.com/MagicalCrawler/RealEstateApp/models"
 	crawlerModels "github.com/MagicalCrawler/RealEstateApp/models/crawler"
+	"github.com/MagicalCrawler/RealEstateApp/utils"
+	"gorm.io/gorm"
 	"io/ioutil"
 	"log"
+	"math"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,16 +26,18 @@ import (
 type CrawlerService struct {
 	crawlers    []crawlers.Crawler
 	cityService *CityService
+	db          *gorm.DB
 }
 
 // NewCrawlerService creates a new instance of CrawlerService
-func NewCrawlerService() *CrawlerService {
+func NewCrawlerService(db *gorm.DB) *CrawlerService {
 	return &CrawlerService{
 		crawlers: []crawlers.Crawler{
 			divar.NewDivarCrawler(),
 			// Add other crawler implementations here
 		},
 		cityService: NewCityService(),
+		db:          db,
 	}
 }
 
@@ -40,7 +48,12 @@ func (s *CrawlerService) Start() {
 
 // run executes the crawling cycle at regular intervals
 func (s *CrawlerService) run() {
-	ticker := time.NewTicker(30 * time.Minute)
+	jobTimer, err := strconv.Atoi(utils.GetConfig("CRAWLER_INTERVAL"))
+	if err != nil {
+		jobTimer = 30
+	}
+
+	ticker := time.NewTicker(time.Duration(jobTimer) * time.Minute)
 	defer ticker.Stop()
 
 	for {
@@ -88,6 +101,12 @@ func (s *CrawlerService) executeCrawlCycle() {
 						log.Printf("Crawler error for city %s: %v", city.Name, err)
 						return
 					}
+
+					// تبدیل اعداد فارسی به انگلیسی در داده‌های بازگشتی
+					for i := range result {
+						result[i] = processPost(result[i])
+					}
+
 					posts = append(posts, result...)
 				}(crawler, city)
 			}
@@ -117,11 +136,61 @@ func (s *CrawlerService) executeCrawlCycle() {
 	}
 
 	// Save session data if needed
-	session.saveToJSONFile("file.json")
+	err = session.saveToJSONFile("file.json")
+	if err != nil {
+		fmt.Println("Error saving session to JSON:", err)
+	}
+
+	err = mapAndSaveCrawlerSession(session, s.db)
+	if err != nil {
+		log.Fatalf("Error saving crawler session: %v", err)
+	}
+
 	log.Println("All crawlers completed. Waiting for next cycle...")
 }
 
 // Helper functions and types
+
+// Map for replacing Arabic digits to Persian digits
+// Map for replacing Persian digits to English digits
+var digitMap = map[rune]rune{
+	'۰': '0', '۱': '1', '۲': '2', '۳': '3',
+	'۴': '4', '۵': '5', '۶': '6', '۷': '7',
+	'۸': '8', '۹': '9', '٬': ',',
+}
+
+// Function to replace Persian digits with English digits
+func replaceDigits(input string) string {
+	var result strings.Builder
+	for _, ch := range input {
+		if newCh, exists := digitMap[ch]; exists {
+			result.WriteRune(newCh)
+		} else {
+			result.WriteRune(ch)
+		}
+	}
+	return result.String()
+}
+
+func processPost(post crawlerModels.Post) crawlerModels.Post {
+	post.Title = replaceDigits(post.Title)
+	post.Description = replaceDigits(post.Description)
+	post.Price = replaceDigits(post.Price)
+	post.TotalPrice = replaceDigits(post.TotalPrice)
+	post.Deposit = replaceDigits(post.Deposit)
+	post.MonthlyRent = replaceDigits(post.MonthlyRent)
+	post.PricePerSquareMeter = replaceDigits(post.PricePerSquareMeter)
+
+	// پردازش دیگر فیلدهای متنی اگر وجود دارند
+	if post.RentalMetadata != nil {
+		post.RentalMetadata.NormalDayPrice = replaceDigits(post.RentalMetadata.NormalDayPrice)
+		post.RentalMetadata.WeekendPrice = replaceDigits(post.RentalMetadata.WeekendPrice)
+		post.RentalMetadata.HolidayPrice = replaceDigits(post.RentalMetadata.HolidayPrice)
+		post.RentalMetadata.ExtraPersonCost = replaceDigits(post.RentalMetadata.ExtraPersonCost)
+	}
+
+	return post
+}
 
 // CrawlerSession represents a crawling session with resource usage stats
 type CrawlerSession struct {
@@ -205,4 +274,118 @@ func (cs *CrawlerSession) saveToJSONFile(filename string) error {
 	}
 
 	return nil
+}
+
+func mapAndSaveCrawlerSession(session CrawlerSession, db *gorm.DB) error {
+	// 1. نگاشت CrawlHistory
+	crawlHistory := models.CrawlHistory{
+		PostNum:     uint(len(session.Posts)),
+		CpuUsage:    float32(math.Round(session.TotalCPU*100) / 100),
+		MemoryUsage: float32(math.Round(session.TotalMemory*100) / 100),
+		RequestsNum: 1, // تعداد درخواست‌ها (اگر اطلاعاتی دارید اینجا پر کنید)
+		StartedAt:   session.StartTime,
+		FinishedAt:  session.EndTime,
+	}
+
+	if err := db.Create(&crawlHistory).Error; err != nil {
+		return fmt.Errorf("failed to save CrawlHistory: %w", err)
+	}
+
+	// 2. نگاشت Posts و PostHistory
+	for _, post := range session.Posts {
+		// ذخیره Post
+		dbPost := models.Post{
+			UniqueCode: post.ID,
+			Website:    "Divar", // فرض بر اینکه این اطلاعات موجود است
+		}
+		if err := db.FirstOrCreate(&dbPost, "unique_code = ?", dbPost.UniqueCode).Error; err != nil {
+			log.Printf("failed to save post %s: %v", post.ID, err)
+			continue
+		}
+
+		postHistory := models.PostHistory{
+			PostID:         dbPost.ID,
+			Title:          post.Title,
+			PostURL:        post.Link,
+			Price:          parsePrice(post.TotalPrice),
+			Deposit:        parsePrice(post.Deposit),
+			Rent:           parsePrice(post.MonthlyRent),
+			City:           post.City.Name,
+			Neighborhood:   "",
+			Area:           parseArea(post.Area),
+			BedroomNum:     parseBedrooms(post.Rooms),
+			Age:            parseAge(post.YearBuilt),
+			FloorsNum:      parseFloors(post.Floor),
+			HasStorage:     containsFeature(post.Features, "انباری"),
+			HasParking:     containsFeature(post.Features, "پارکینگ"),
+			HasElevator:    containsFeature(post.Features, "آسانسور"),
+			ImageURL:       strings.Join(post.Images, ","),
+			Description:    post.Description,
+			CrawlHistoryID: crawlHistory.ID,
+		}
+
+		// بررسی وجود RentalMetadata
+		if post.RentalMetadata != nil {
+			postHistory.Capacity = post.RentalMetadata.Capacity
+			postHistory.NormalDays = post.RentalMetadata.NormalDayPrice
+			postHistory.Weekend = post.RentalMetadata.WeekendPrice
+			postHistory.Holidays = post.RentalMetadata.HolidayPrice
+			postHistory.CostPerPerson = post.RentalMetadata.ExtraPersonCost
+		}
+
+		if err := db.Create(&postHistory).Error; err != nil {
+			log.Printf("failed to save PostHistory for post %s: %v", post.ID, err)
+			continue
+		}
+
+	}
+
+	return nil
+}
+
+// Helper functions for parsing
+func parsePrice(price string) int64 {
+	price = strings.ReplaceAll(price, ",", "")
+	price = strings.ReplaceAll(price, " تومان", "")
+	price = strings.ReplaceAll(price, "ریال", "")
+	price = replaceDigits(price) // اگر اعداد فارسی وجود دارند
+	parsed, _ := strconv.ParseInt(price, 10, 64)
+	return parsed
+}
+
+func parseArea(area string) int {
+	area = replaceDigits(area)
+	parsed, _ := strconv.Atoi(area)
+	return parsed
+}
+
+func parseBedrooms(rooms string) int {
+	rooms = replaceDigits(rooms)
+	parsed, _ := strconv.Atoi(rooms)
+	return parsed
+}
+
+func parseAge(yearBuilt string) uint8 {
+	currentYear := time.Now().Year()
+	yearBuilt = replaceDigits(yearBuilt)
+	builtYear, _ := strconv.Atoi(yearBuilt)
+	if builtYear > 0 {
+		return uint8(currentYear - builtYear)
+	}
+	return 0
+}
+
+func parseFloors(floor string) uint8 {
+	floor = replaceDigits(strings.Split(floor, " ")[0]) // اولین بخش طبقه
+	parsed, _ := strconv.Atoi(floor)
+	return uint8(parsed)
+}
+
+func containsFeature(features []string, feature string) bool {
+	for _, f := range features {
+		if strings.Contains(f, feature) {
+			return true
+		}
+	}
+	return false
 }
