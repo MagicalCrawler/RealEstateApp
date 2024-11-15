@@ -49,6 +49,8 @@ func seedSuperAdminUser(datab *gorm.DB) {
 }
 
 func postsSeeds(datab *gorm.DB) {
+	datab.Unscoped().Where("1 = 1").Delete(&models.PostHistory{})
+	datab.Unscoped().Where("1 = 1").Delete(&models.Post{})
 	postRepository := NewPostRepository(datab)
 	crawlInfo := models.CrawlHistory{}
 	if err := datab.Create(&crawlInfo).Error; err != nil {
