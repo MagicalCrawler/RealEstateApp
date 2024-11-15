@@ -15,10 +15,12 @@ func main() {
 	// Initialize DB connection
 	dbConnection := db.NewConnection()
 
+	// Initialize crawler service jobs
+	crawlerService := services.NewCrawlerService()
+	crawlerService.Start()
+
 	// Run the Telegram bot
 	client.Run(dbConnection)
-
-	go services.StartCrawlers()
 
 	select {}
 }

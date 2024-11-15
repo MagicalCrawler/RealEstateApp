@@ -6,32 +6,136 @@ import (
 	"fmt"
 	"github.com/MagicalCrawler/RealEstateApp/crawlers"
 	"github.com/MagicalCrawler/RealEstateApp/crawlers/divar"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/mem"
+	crawlerModels "github.com/MagicalCrawler/RealEstateApp/models/crawler"
+	"io/ioutil"
 	"log"
-	"os"
 	"sync"
 	"time"
+
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 )
 
-const (
-	interval       = 30 * time.Minute
-	sampleInterval = 2 * time.Second
-	maxRetries     = 3
-)
-
-type CrawlerSession struct {
-	TotalPosts      []crawlers.Post
-	TotalCPU        float64
-	TotalMemory     float64
-	StartTime       time.Time
-	EndTime         time.Time
-	ExecutionTime   time.Duration
-	SuccessfulCount int
+// CrawlerService manages the crawling process
+type CrawlerService struct {
+	crawlers    []crawlers.Crawler
+	cityService *CityService
 }
 
-func ChunkCities(cities []crawlers.City, chunkSize int) [][]crawlers.City {
-	var chunks [][]crawlers.City
+// NewCrawlerService creates a new instance of CrawlerService
+func NewCrawlerService() *CrawlerService {
+	return &CrawlerService{
+		crawlers: []crawlers.Crawler{
+			divar.NewDivarCrawler(),
+			// Add other crawler implementations here
+		},
+		cityService: NewCityService(),
+	}
+}
+
+// Start begins the crawling process
+func (s *CrawlerService) Start() {
+	go s.run()
+}
+
+// run executes the crawling cycle at regular intervals
+func (s *CrawlerService) run() {
+	ticker := time.NewTicker(30 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		s.executeCrawlCycle()
+		<-ticker.C
+	}
+}
+
+// executeCrawlCycle performs a single crawling cycle
+func (s *CrawlerService) executeCrawlCycle() {
+	cities, err := s.cityService.GetCities()
+	if err != nil {
+		log.Printf("Failed to get cities: %v", err)
+		return
+	}
+
+	chunkedCities := chunkCities(cities, 10)
+	var posts []crawlerModels.Post
+
+	var (
+		totalCPU    float64
+		totalMemory float64
+	)
+
+	startTime := time.Now()
+
+	for _, cityChunk := range chunkedCities {
+		var wg sync.WaitGroup
+		ctx, cancel := context.WithCancel(context.Background())
+
+		var avgCPU, avgMemory float64
+		monitorDone := make(chan struct{})
+		go func() {
+			defer close(monitorDone)
+			avgCPU, avgMemory, _ = monitorResources(ctx, 2*time.Second)
+		}()
+
+		for _, crawler := range s.crawlers {
+			for _, city := range cityChunk {
+				wg.Add(1)
+				go func(crawler crawlers.Crawler, city crawlerModels.City) {
+					defer wg.Done()
+					result, err := crawler.Crawl(ctx, city)
+					if err != nil {
+						log.Printf("Crawler error for city %s: %v", city.Name, err)
+						return
+					}
+					posts = append(posts, result...)
+				}(crawler, city)
+			}
+		}
+
+		wg.Wait()
+		cancel()
+		<-monitorDone
+
+		totalCPU += avgCPU
+		totalMemory += avgMemory
+
+		log.Println("Chunk completed. Moving to next chunk...")
+		time.Sleep(5 * time.Second)
+	}
+
+	endTime := time.Now()
+	executionTime := endTime.Sub(startTime)
+
+	session := CrawlerSession{
+		StartTime:     startTime,
+		EndTime:       endTime,
+		ExecutionTime: executionTime,
+		TotalCPU:      totalCPU / float64(len(chunkedCities)),
+		TotalMemory:   totalMemory / float64(len(chunkedCities)),
+		Posts:         posts,
+	}
+
+	// Save session data if needed
+	session.saveToJSONFile("file.json")
+	log.Println("All crawlers completed. Waiting for next cycle...")
+}
+
+// Helper functions and types
+
+// CrawlerSession represents a crawling session with resource usage stats
+type CrawlerSession struct {
+	StartTime     time.Time
+	EndTime       time.Time
+	ExecutionTime time.Duration
+	TotalCPU      float64
+	TotalMemory   float64
+	Posts         []crawlerModels.Post
+}
+
+// chunkCities splits the cities into smaller chunks
+func chunkCities(cities []crawlerModels.City, chunkSize int) [][]crawlerModels.City {
+	var chunks [][]crawlerModels.City
 	for i := 0; i < len(cities); i += chunkSize {
 		end := i + chunkSize
 		if end > len(cities) {
@@ -42,76 +146,7 @@ func ChunkCities(cities []crawlers.City, chunkSize int) [][]crawlers.City {
 	return chunks
 }
 
-func StartCrawlers() {
-	cities, err := fetchCitiesFromAPIWithCache()
-	if err != nil {
-		log.Fatalf("Could not fetch cities: %v", err)
-	}
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		log.Println("Starting crawlers...")
-		session := CrawlerSession{}
-
-		chunkedCities := ChunkCities(cities, 10)
-
-		startTime := time.Now()
-
-		for _, cityChunk := range chunkedCities {
-			var wg sync.WaitGroup
-			ctx, cancel := context.WithCancel(context.Background())
-
-			var avgCPU, avgMemory float64
-			monitorDone := make(chan struct{})
-			go func() {
-				defer close(monitorDone)
-				avgCPU, avgMemory, _ = monitorResources(ctx, sampleInterval)
-			}()
-
-			for _, city := range cityChunk {
-				wg.Add(1)
-				go func(city crawlers.City) {
-					defer wg.Done()
-					log.Printf("Starting crawler for city %s", city.Name)
-					crawlerMetadata := runSingleCrawler(city)
-					if crawlerMetadata.Successful {
-						session.TotalPosts = append(session.TotalPosts, crawlerMetadata.Posts...)
-						session.SuccessfulCount++
-					}
-					log.Printf("Crawler; completed for city %s", city.Name)
-				}(city)
-			}
-
-			wg.Wait()
-
-			cancel()
-			<-monitorDone
-
-			session.TotalCPU += avgCPU
-			session.TotalMemory += avgMemory
-
-			log.Println("Chunk completed. Moving to next chunk...")
-			time.Sleep(5 * time.Second)
-		}
-
-		endTime := time.Now()
-		executionTime := endTime.Sub(startTime)
-
-		session.StartTime = startTime
-		session.EndTime = endTime
-		session.ExecutionTime = executionTime
-
-		session.TotalCPU /= float64(len(chunkedCities))
-		session.TotalMemory /= float64(len(chunkedCities))
-
-		saveSessionData(session)
-		log.Println("All crawlers completed. Waiting for next cycle...")
-		<-ticker.C
-	}
-}
-
+// monitorResources monitors CPU and memory usage
 func monitorResources(ctx context.Context, sampleInterval time.Duration) (float64, float64, error) {
 	var (
 		cpuSamples []float64
@@ -145,6 +180,7 @@ func monitorResources(ctx context.Context, sampleInterval time.Duration) (float6
 	}
 }
 
+// calculateAverage calculates the average of a slice of float64 numbers
 func calculateAverage(samples []float64) float64 {
 	var sum float64
 	for _, sample := range samples {
@@ -156,54 +192,17 @@ func calculateAverage(samples []float64) float64 {
 	return sum / float64(len(samples))
 }
 
-func runSingleCrawler(city crawlers.City) crawlers.SingleCrawlerData {
-	var (
-		posts      []crawlers.Post
-		successful bool
-		attempts   int
-	)
-
-	_, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	cityURL := fmt.Sprintf("https://divar.ir/s/%s/real-estate", city.Slug)
-
-	for attempts = 0; attempts < maxRetries; attempts++ {
-		crawler := divar.NewDivarRealEstateCrawler(cityURL)
-		result, err := crawler.Crawl(2, city)
-
-		if err != nil {
-			log.Printf("Error crawling city %s on attempt %d: %v", city.Name, attempts+1, err)
-			continue
-		}
-
-		if len(result) > 0 {
-			successful = true
-			posts = append(posts, result...)
-			break
-		}
-
-		log.Printf("No posts found for city %s on attempt %d, retrying...", city.Name, attempts+1)
-		time.Sleep(5 * time.Second)
-	}
-
-	return crawlers.SingleCrawlerData{
-		Posts:      posts,
-		Successful: successful,
-	}
-}
-
-func saveSessionData(session CrawlerSession) {
-	filename := fmt.Sprintf("crawler_session_%d.json", time.Now().Unix())
-	file, err := os.Create(filename)
+// SaveToJSONFile saves the CrawlerSession to a JSON file
+func (cs *CrawlerSession) saveToJSONFile(filename string) error {
+	jsonData, err := json.MarshalIndent(cs, "", "  ")
 	if err != nil {
-		log.Fatalf("Failed to create session file: %v", err)
+		return fmt.Errorf("error marshaling JSON: %v", err)
 	}
-	defer file.Close()
 
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(session); err != nil {
-		log.Fatalf("Failed to write session data to file: %v", err)
+	err = ioutil.WriteFile(filename, jsonData, 0644)
+	if err != nil {
+		return fmt.Errorf("error writing JSON to file: %v", err)
 	}
+
+	return nil
 }
