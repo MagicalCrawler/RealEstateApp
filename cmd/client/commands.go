@@ -45,7 +45,7 @@ func (cmd *StartCommand) Execute(message *Message, user *models.User) {
 }
 
 func (cmd *StartCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.USER}
 }
 
 //////////////////////////////////////
@@ -59,7 +59,7 @@ func (cmd *GetRediusCommand) Execute(message *Message, user *models.User) {
 	return
 }
 func (cmd *GetRediusCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.USER}
 }
 
 // //////////////////////////////////
@@ -71,10 +71,22 @@ func (cmd *GetLocationAttachmentCommand) Execute(message *Message, user *models.
 	return
 }
 func (cmd *GetLocationAttachmentCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.USER}
+}
+
+// ////////////////////////////////
+type SettingCommand struct{}
+
+func (cmd *SettingCommand) Execute(message *Message, user *models.User) {
+	msg := "You entered setting"
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+func (cmd *SettingCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.ADMIN, models.SUPER_ADMIN}
 }
 
 // //////////////////////////////////
+
 type HelpCommand struct{}
 
 func (cmd *HelpCommand) Execute(message *Message, user *models.User) {
@@ -97,7 +109,7 @@ func (cmd *SendLocationCommand) Execute(message *Message, user *models.User) {
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *SendLocationCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.USER}
 }
 
 // ////////////////////////////////////
@@ -108,7 +120,7 @@ func (cmd *SearchCommand) Execute(message *Message, user *models.User) {
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *SearchCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.USER}
 }
 
 // ////////////////////////////////////
@@ -119,7 +131,7 @@ func (cmd *FilterCommand) Execute(message *Message, user *models.User) {
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *FilterCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.USER}
 }
 
 // ////////////////////////////////
@@ -130,7 +142,7 @@ func (cmd *PopularsCommand) Execute(message *Message, user *models.User) {
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *PopularsCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.USER}
 }
 
 ///////////////////////////////////////////////// Admin Commands
@@ -142,7 +154,7 @@ func (cmd *ErrorsCommand) Execute(message *Message, user *models.User) {
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *ErrorsCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.ADMIN, models.SUPER_ADMIN}
 }
 
 // ///////////////////////////////
@@ -168,18 +180,7 @@ func (cmd *ClientCommand) Execute(message *Message, user *models.User) {
 	return
 }
 func (cmd *ClientCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
-}
-
-// ////////////////////////////////
-type SettingCommand struct{}
-
-func (cmd *SettingCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered setting"
-	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
-}
-func (cmd *SettingCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.ADMIN, models.SUPER_ADMIN}
 }
 
 // ////////////////////////////////
@@ -190,7 +191,7 @@ func (cmd *FiltersCommand) Execute(message *Message, user *models.User) {
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *FiltersCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.ADMIN, models.SUPER_ADMIN}
 }
 
 // ///////////////////////////////
@@ -202,7 +203,7 @@ func (cmd *PremiumCommand) Execute(message *Message, user *models.User) {
 	return
 }
 func (cmd *PremiumCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.ADMIN, models.SUPER_ADMIN}
 }
 
 // ////////////////////////////////
@@ -223,7 +224,7 @@ func (cmd *GetPremiumIdCommand) Execute(message *Message, user *models.User) {
 	return
 }
 func (cmd *GetPremiumIdCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.ADMIN, models.SUPER_ADMIN}
 }
 
 //////////////////////////////////////////////////// Super-admin commands
@@ -251,7 +252,7 @@ func (cmd *AdminCommand) Execute(message *Message, user *models.User) {
 	return
 }
 func (cmd *AdminCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.SUPER_ADMIN}
 }
 
 // //////////////////////////////////
@@ -263,7 +264,7 @@ func (cmd *MonitorCommand) Execute(message *Message, user *models.User) {
 	return
 }
 func (cmd *MonitorCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.SUPER_ADMIN}
 }
 
 // //////////////////////////////////
@@ -275,7 +276,7 @@ func (cmd *AdvertisementsCommand) Execute(message *Message, user *models.User) {
 	return
 }
 func (cmd *AdvertisementsCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.SUPER_ADMIN}
 }
 
 // //////////////////////////////////
@@ -287,7 +288,7 @@ func (cmd *CrawlerSettingCommand) Execute(message *Message, user *models.User) {
 	return
 }
 func (cmd *CrawlerSettingCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.SUPER_ADMIN}
 }
 
 // //////////////////////////////////
@@ -308,7 +309,7 @@ func (cmd *CreateAdminCommand) Execute(message *Message, user *models.User) {
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *CreateAdminCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.SUPER_ADMIN}
 }
 
 // ///////////////////////////////
@@ -320,5 +321,5 @@ func (cmd *GetAdminIdCommand) Execute(message *Message, user *models.User) {
 	return
 }
 func (cmd *GetAdminIdCommand) AllowedRoles() []models.Role {
-	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+	return []models.Role{models.SUPER_ADMIN}
 }
