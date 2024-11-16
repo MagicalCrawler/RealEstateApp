@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	
 
+	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/models"
-
 )
 
 func initializeCommands() {
@@ -155,8 +154,23 @@ func (cmd *FilterCommand) AllowedRoles() []models.Role {
 type PopularsCommand struct{}
 
 func (cmd *PopularsCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered populars"
+	msg := "    All Popular Advertisements:\n\n"
+	ads, err := postRepository.GetMostVisitedPost()
+	if err != nil {
+		msg = "Error fetching posts: "
+		log.Fatal(msg + err.Error())
+	} else {
+		if len(ads) == 0 {
+			msg = "Nothing found"
+		} else {
+			for _, a := range ads {
+				msg += fmt.Sprintf("%s  \n", a.Title) //, a.Post.WatchedNum)
+				msg += fmt.Sprint("-------------------------\n")
+			}
+		}
+	}
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+	return
 }
 func (cmd *PopularsCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.USER}
@@ -227,7 +241,7 @@ func (cmd *PremiumCommand) AllowedRoles() []models.Role {
 type GetPremiumIdCommand struct{}
 
 func (cmd *GetPremiumIdCommand) Execute(message *Message, user *models.User) {
-	msg := fmt.Sprintf("User with id :%s changed to Premium client.", message.Title)
+	msg := fmt.Sprintf("User with id :%s changed to Premium client.", message.Value[3:])
 	id, err := strconv.ParseInt(message.Value[3:], 10, 64)
 	if err != nil {
 		msg = "Invalid ID format. Please use 'Id=<number>'."
@@ -276,10 +290,20 @@ func (cmd *AdminCommand) AllowedRoles() []models.Role {
 type MonitorCommand struct{}
 
 func (cmd *MonitorCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered Monitor"
+	msg := "You entered Monitor\nCrawls"
+	/////////////
+	cdb := db.NewConnection()
+	allCrawls := cdb.Find(&models.CrawlHistory{}) // tx *gorm.DB
+	var crawlHistories []models.CrawlHistory
+	allCrawls.Scan(&crawlHistories) //
+	for _, ch := range crawlHistories {
+		msg += fmt.Sprintf("\nID: %d, URL: %v, Status: %v", ch.ID, ch.CpuUsage, ch.MemoryUsage)
+	}
+	/////////////
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 	return
 }
+
 func (cmd *MonitorCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.SUPER_ADMIN}
 }
@@ -288,7 +312,21 @@ func (cmd *MonitorCommand) AllowedRoles() []models.Role {
 type AdvertisementsCommand struct{}
 
 func (cmd *AdvertisementsCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered Advertisements"
+	msg := "    Advertisements:\n\n"
+	ads, err := postRepository.GetAllPosts()
+	if err != nil {
+		msg = "Error fetching posts: "
+		log.Fatal(msg + err.Error())
+	} else {
+		if len(ads) == 0 {
+			msg = "Nothing found"
+		} else {
+			for _, a := range ads {
+				msg += fmt.Sprintf("%s  \n", a.Title) //, a.Post.WatchedNum)
+				msg += fmt.Sprint("-------------------------\n")
+			}
+		}
+	}
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 	return
 }
