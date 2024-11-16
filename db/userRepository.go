@@ -23,7 +23,7 @@ type UserRepository interface {
 
 type UserRepositoryImpl struct {
 	dbConnection *gorm.DB
-	logger *slog.Logger
+	logger       *slog.Logger
 }
 
 func CreateNewUserRepository(dbConnection *gorm.DB) UserRepository {
