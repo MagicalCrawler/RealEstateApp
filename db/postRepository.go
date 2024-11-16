@@ -18,7 +18,8 @@ type PostRepo interface {
 	PostHistorySaving(postHistory models.PostHistory, post models.Post, crawlHistory models.CrawlHistory) (models.PostHistory, error)
 	CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error)
 	CrawlHistoryIsExist(crawlHistory models.CrawlHistory) bool
-	GetMostVisitedPost() ([]models.Post, error)
+	GetMostVisitedPost() ([]models.PostHistory, error)
+	GetAllPosts() ([]models.PostHistory, error)
 }
 
 type PostRepository struct {
@@ -40,13 +41,30 @@ func (pr PostRepository) CrawlHistoryIsExist(crawlHistory models.CrawlHistory) b
 	}
 	return isExist
 }
-func (pr PostRepository) GetMostVisitedPost() ([]models.Post, error) {
-	var posts []models.Post
+func (pr PostRepository) GetMostVisitedPost() ([]models.PostHistory, error) {
+	var posts []models.PostHistory
 
 	err := pr.dbConnection.Table("posts").
-		Order("WatchedNum DESC").
+		Select("posts.unique_code, posts.watched_num, post_histories.title, post_histories.post_url, post_histories.price").
+		Joins("INNER JOIN post_histories ON post_histories.post_id = posts.id").
+		Order("posts.watched_num DESC").
 		Limit(10).
-		Find(&posts).Error
+		Scan(&posts).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+func (pr PostRepository) GetAllPosts() ([]models.PostHistory, error) {
+	var posts []models.PostHistory
+
+	err := pr.dbConnection.Table("posts").
+		Select("DISTINCT posts.unique_code, posts.watched_num, post_histories.title, post_histories.post_url, post_histories.price").
+		Joins("INNER JOIN post_histories ON post_histories.post_id = posts.id").
+		Order("posts.watched_num DESC").
+		Scan(&posts).Error
 
 	if err != nil {
 		return nil, err
