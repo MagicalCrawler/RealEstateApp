@@ -14,8 +14,11 @@ type UserRepository interface {
 	Save(models.User) (models.User, error)
 	Find(ID uint) (models.User, error)
 	FindByTelegramID(TelegramID uint64) (models.User, error)
-	FindAll() []models.User
+	FindAll() ([]models.User, error)
+	FindAllUsersByRole(models.Role) ([]models.User, error)
 	Delete(ID uint) error
+	UpdateUserType(ID uint, Type models.UserType) (models.User, error)
+	UpdateUserRole(ID uint, Role models.Role) (models.User, error)
 }
 
 type UserRepositoryImpl struct {
@@ -61,11 +64,25 @@ func (ur UserRepositoryImpl) FindByTelegramID(TelegramID uint64) (models.User, e
 	return user, nil
 }
 
-func (ur UserRepositoryImpl) FindAll() []models.User {
+func (ur UserRepositoryImpl) FindAll() ([]models.User, error) {
 	var users []models.User
-	result := ur.dbConnection.Find(users)
-	fmt.Println(result.RowsAffected)
-	return users
+	result := ur.dbConnection.Find(&users)
+	if result.Error != nil {
+		fmt.Println("error occurred")
+		return users, result.Error // Return the error if any
+	}
+	// fmt.Println(result.RowsAffected)
+	return users, nil
+}
+func (ur UserRepositoryImpl) FindAllUsersByRole(role models.Role) ([]models.User, error) {
+	var users []models.User
+	result := ur.dbConnection.Where("role = ?", role).Find(&users)
+	if result.Error != nil {
+		fmt.Println("error occurred")
+		return users, result.Error // Return the error if any
+	}
+	// fmt.Println(result.RowsAffected)
+	return users, nil
 }
 
 func (ur UserRepositoryImpl) Delete(id uint) error {
@@ -84,4 +101,20 @@ func (ur UserRepositoryImpl) Delete(id uint) error {
 		return nil
 	}
 	return err
+}
+func (ur UserRepositoryImpl) UpdateUserType(ID uint, Type models.UserType) (models.User, error) {
+	var user models.User
+	result := ur.dbConnection.Model(&user).Where("id = ?", ID).Where("role = ?", models.USER).Update("type", Type)
+	if result.Error != nil {
+		return user, result.Error
+	}
+	return user, nil
+}
+func (ur UserRepositoryImpl) UpdateUserRole(ID uint, Role models.Role) (models.User, error) {
+	var user models.User
+	result := ur.dbConnection.Model(&user).Where("id = ?", ID).Where("role = ?", models.USER).Update("role", Role)
+	if result.Error != nil {
+		return user, result.Error
+	}
+	return user, nil
 }

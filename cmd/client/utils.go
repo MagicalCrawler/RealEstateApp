@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -39,28 +40,39 @@ func getOrCreateUserRunCommand(message *Message) models.User {
 	}
 	return user
 }
-func pollUpdates() {
+func pollUpdates(ctx context.Context) {
 	offset := 0
 
 	for {
-		updates, err := getUpdates(offset)
-		if err != nil {
-			log.Printf("Error getting updates: %v", err)
-			continue
-		}
-
-		for _, update := range updates {
-			offset = update.UpdateID + 1
-			if update.Message != nil {
-				handleMessage(update.Message)
-			} else if update.Callback != nil {
-				// handleCallback(update.Callback)
+		select {
+		case <-ctx.Done():
+			// Context canceled or timed out, clean up and exit
+			log.Println("pollUpdates: Stopping due to context cancellation.")
+			return
+		default:
+			updates, err := getUpdates(offset)
+			if err != nil {
+				log.Printf("Error getting updates: %v", err)
+				// Short delay before retrying to prevent tight error loop
+				time.Sleep(1 * time.Second)
+				continue
 			}
-		}
 
-		time.Sleep(1 * time.Second)
+			for _, update := range updates {
+				offset = update.UpdateID + 1
+				if update.Message != nil {
+					handleMessage(update.Message)
+				} else if update.Callback != nil {
+					// handleCallback(update.Callback)
+				}
+			}
+
+			// Avoid excessive API polling; sleep for 1 second between calls
+			time.Sleep(1 * time.Second)
+		}
 	}
 }
+
 func deleteMessage(chatID int, messageID int) error {
 	data := url.Values{}
 	data.Set("chat_id", strconv.Itoa(chatID))
@@ -100,6 +112,8 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 				{
 					{Text: "Filters"},
 					{Text: "Premium"},
+					{Text: "Clients"},
+				}, {
 					{Text: "Errors"},
 				},
 			},
@@ -111,14 +125,12 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 			Keyboard: [][]KeyboardButton{
 				{
 					{Text: "Admins"},
-					{Text: "Premium"},
+					{Text: "Monitor"},
 					{Text: "Clients"},
 				},
 				{
-					{Text: "Monitor"},
+
 					{Text: "ََAdvertisements"},
-				},
-				{
 					{Text: "Crawler Setting"},
 				},
 			},
@@ -130,6 +142,9 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 			Keyboard: [][]KeyboardButton{
 				{
 					{Text: "Search"},
+					{Text: "Filter"},
+				},
+				{
 					{Text: "Setting"},
 					{Text: "Populars"},
 				},
