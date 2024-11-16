@@ -2,8 +2,6 @@ package models
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type FilterItem struct {
@@ -26,14 +24,7 @@ type FilterItem struct {
 	HasElevator      bool        `json:"has_elevator"`
 	CreatedDateStart time.Time   `json:"created_date_start"`
 	CreatedDateEnd   time.Time   `json:"created_date_end"`
-	UserID           uint        `json:"user_id"`
+	UserID           uint        `json:"user_id"` // Foreign Key
+	User             User        `gorm:"foreignKey:UserID"` // Define the relationship to the User model
 	WatchLists       []WatchList `gorm:"foreignKey:FilterItemID"` // Optional, for reverse lookup
-}
-
-// CreateFilterItem creates a new FilterItem entry in the database
-func CreateFilterItem(db *gorm.DB, filterItem FilterItem) (*FilterItem, error) {
-	if err := db.Create(&filterItem).Error; err != nil {
-		return nil, err
-	}
-	return &filterItem, nil
 }

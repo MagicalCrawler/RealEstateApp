@@ -64,6 +64,7 @@ func pollUpdates(ctx context.Context) {
 					handleMessage(update.Message)
 				} else if update.Callback != nil {
 					// handleCallback(update.Callback)
+					handleCallbackQuery(update.Callback)
 				}
 			}
 

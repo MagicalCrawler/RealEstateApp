@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/MagicalCrawler/RealEstateApp/models"
+
 	"gorm.io/gorm"
 )
 
@@ -283,14 +284,15 @@ func saveUserFilterInput(db *gorm.DB, userID uint, filterType, value string) {
 	}
 
 	// Save or update the FilterItem in the database
+	filterItem.UserID = userID
 	if filterItem.ID == 0 {
 		// Create a new record
-		if _, err := models.CreateFilterItem(db, filterItem); err != nil {
+		if _, err := filterRepository.Create(filterItem); err != nil {
 			log.Printf("Error creating filter item for user %d: %v", userID, err)
 		}
 	} else {
 		// Update the existing record
-		if err := db.Save(&filterItem).Error; err != nil {
+		if _, err := filterRepository.Update(filterItem.ID, filterItem); err != nil {
 			log.Printf("Error updating filter item for user %d: %v", userID, err)
 		}
 	}
