@@ -474,7 +474,7 @@ func showFilterMenu(chatID int64, userId uint) {
 
 	// Add the "Create New Filter" button
 	filterButtons = append(filterButtons, []InlineKeyboardButton{
-		{Text: "Create New Filter", Data: "create_new_filter"},
+		{Text: "Create New Filter", Data: "CreateFilter"},
 	})
 
 	// Define the keyboard layout
@@ -486,6 +486,26 @@ func showFilterMenu(chatID int64, userId uint) {
 	sendMessageWithInlineKeyboard(int(chatID), "Select a filter or create a new one:", keyboard)
 }
 
-func getFiltersFromDB() {
+func showFilterOptions(chatID int) {
+	filterOptions := []string{
+		"Price Range",
+		"City",
+		"Neighborhood",
+		"Area Range",
+		"Bedroom Count Range",
+		"Category (Rent/Buy/Mortgage)",
+		"Building Age Range",
+		"Property Type (Apartment/Villa)",
+		"Floor Range",
+		"Storage Availability",
+		"Elevator Availability",
+		"Advertisement Creation Date Range",
+	}
 
+	msg := "Select a filter to apply:"
+	sendMessageWithInlineKeyboard(
+		int(chatID),
+		msg,
+		createInlineKeyboardFromOptions(filterOptions),
+	)
 }

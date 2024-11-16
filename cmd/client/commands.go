@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	
 
 	"github.com/MagicalCrawler/RealEstateApp/models"
-
 )
 
 func initializeCommands() {
@@ -22,7 +20,9 @@ func initializeCommands() {
 
 		"Setting":             &SettingCommand{},
 		"Filter":              &FilterCommand{},
+		"CreateFilter":        &CreateFilterCommand{},
 		"Location Attachment": &GetLocationAttachmentCommand{},
+
 		//admin commands
 		"Premium":           &PremiumCommand{},
 		"Errors":            &ErrorsCommand{},
@@ -37,6 +37,16 @@ func initializeCommands() {
 		"Advertisements":  &AdvertisementsCommand{},
 		"Crawler Setting": &CrawlerSettingCommand{},
 	}
+}
+
+// //////////////////////////////////
+type CreateFilterCommand struct{}
+
+func (cmd *CreateFilterCommand) Execute(message *Message, user *models.User) {
+	showFilterOptions(message.Chat.ID)
+}
+func (cmd *CreateFilterCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
 }
 
 // /////////////////////////////////// User Commands
