@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -135,7 +135,7 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 				},
 				{
 
-					{Text: "ََAdvertisements"},
+					{Text: "Advertisements"},
 					{Text: "Crawler Setting"},
 				},
 			},
@@ -282,7 +282,6 @@ func sendLocationRequest(chatID int) {
 
 	sendMessageWithKeyboard(chatID, "Please share your location:", keyboard)
 }
-
 
 func createInlineKeyboardFromOptions(options []string) InlineKeyboardMarkup {
 	buttons := make([][]InlineKeyboardButton, 0)
