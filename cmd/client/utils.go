@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -283,7 +283,6 @@ func sendLocationRequest(chatID int) {
 	sendMessageWithKeyboard(chatID, "Please share your location:", keyboard)
 }
 
-
 func createInlineKeyboardFromOptions(options []string) InlineKeyboardMarkup {
 	buttons := make([][]InlineKeyboardButton, 0)
 	for _, option := range options {
@@ -337,6 +336,14 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 	default:
 		sendMessage(callbackQuery.Message.Chat.ID, "Invalid filter selection.")
 	}
+
+	if err != nil {
+		log.Printf("Error fetching user: %v", err)
+		return
+	}
+
+	// Display confirmation menu
+	sendFilterConfirmationMenu(chatID, selectedFilter)
 }
 
 func saveUserFilterInput(db *gorm.DB, userID uint, filterType, value string) {
@@ -431,4 +438,54 @@ func saveUserFilterInput(db *gorm.DB, userID uint, filterType, value string) {
 
 func promptUserForInput(chatID int64, prompt string) {
 	sendMessage(int(chatID), prompt)
+}
+
+func sendFilterConfirmationMenu(chatID int64, filter string) {
+	keyboard := InlineKeyboardMarkup{
+		InlineKeyboard: [][]InlineKeyboardButton{
+			{
+				{
+					Text: "Confirm",
+					Data: "confirm_filter",
+				},
+				{
+					Text: "Cancel",
+					Data: "cancel_filter",
+				},
+			},
+		},
+	}
+
+	text := fmt.Sprintf("You selected the filter: *%s*.\nDo you want to confirm or cancel?", filter)
+	sendMessageWithInlineKeyboard(int(chatID), text, keyboard)
+}
+
+func showFilterMenu(chatID int64, userId uint) {
+	// Fetch filters from the database
+	filters, _ := filterRepository.FindByUserID(userId)
+
+	// Create inline keyboard buttons for each filter
+	var filterButtons [][]InlineKeyboardButton
+	for _, filter := range filters {
+		filterButtons = append(filterButtons, []InlineKeyboardButton{
+			{Text: strconv.Itoa(int(filter.ID)), Data: fmt.Sprintf("select_filter_%s", filter)},
+		})
+	}
+
+	// Add the "Create New Filter" button
+	filterButtons = append(filterButtons, []InlineKeyboardButton{
+		{Text: "Create New Filter", Data: "create_new_filter"},
+	})
+
+	// Define the keyboard layout
+	keyboard := InlineKeyboardMarkup{
+		InlineKeyboard: filterButtons,
+	}
+
+	// Send the menu
+	sendMessageWithInlineKeyboard(int(chatID), "Select a filter or create a new one:", keyboard)
+}
+
+func getFiltersFromDB() {
+
 }

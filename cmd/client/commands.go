@@ -128,23 +128,24 @@ func (cmd *SearchCommand) AllowedRoles() []models.Role {
 type FilterCommand struct{}
 
 func (cmd *FilterCommand) Execute(message *Message, user *models.User) {
-	filterOptions := []string{
-		"Price Range",
-		"City",
-		"Neighborhood",
-		"Area Range",
-		"Bedroom Count Range",
-		"Category (Rent/Buy/Mortgage)",
-		"Building Age Range",
-		"Property Type (Apartment/Villa)",
-		"Floor Range",
-		"Storage Availability",
-		"Elevator Availability",
-		"Advertisement Creation Date Range",
-	}
+	// filterOptions := []string{
+	// 	"Price Range",
+	// 	"City",
+	// 	"Neighborhood",
+	// 	"Area Range",
+	// 	"Bedroom Count Range",
+	// 	"Category (Rent/Buy/Mortgage)",
+	// 	"Building Age Range",
+	// 	"Property Type (Apartment/Villa)",
+	// 	"Floor Range",
+	// 	"Storage Availability",
+	// 	"Elevator Availability",
+	// 	"Advertisement Creation Date Range",
+	// }
 
-	msg := "Select a filter to apply:"
-	sendMessageWithInlineKeyboard(message.Chat.ID, msg, createInlineKeyboardFromOptions(filterOptions))
+	// msg := "Select a filter to apply:"
+	showFilterMenu(int64(message.Chat.ID), user.ID)
+	// sendMessageWithInlineKeyboard(message.Chat.ID, msg, createInlineKeyboardFromOptions(filterOptions))
 }
 
 func (cmd *FilterCommand) AllowedRoles() []models.Role {
