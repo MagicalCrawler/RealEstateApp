@@ -6,6 +6,7 @@ import (
 	crawlerModels "github.com/MagicalCrawler/RealEstateApp/models/crawler"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
 	"log"
+	"log/slog"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -30,6 +31,7 @@ const (
 type DivarCrawler struct {
 	baseURL    string
 	userAgents []string
+	logger     *slog.Logger
 }
 
 // NewDivarCrawler creates a new instance of DivarCrawler
@@ -58,6 +60,7 @@ func NewDivarCrawler() *DivarCrawler {
 			"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0",
 			"Mozilla/5.0 (Linux; U; Android 9; en-US; SM-G960U Build/PPR1.180610.011) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.89 Mobile Safari/537.36",
 		},
+		logger: utils.NewLogger("Divar_Crawler"),
 	}
 }
 
@@ -75,6 +78,7 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 	// Initialize Playwright
 	pw, err := playwright.Run()
 	if err != nil {
+		c.logger.Error("could not start Playwright: ", err)
 		return nil, fmt.Errorf("could not start Playwright: %w", err)
 	}
 	defer pw.Stop()
@@ -83,6 +87,7 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 		Headless: playwright.Bool(true),
 	})
 	if err != nil {
+		c.logger.Error("could not launch browser: ", err)
 		return nil, fmt.Errorf("could not launch browser: %w", err)
 	}
 	defer browser.Close()
@@ -106,11 +111,11 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 		retryDelay := time.Duration(retryDelaySeconds) * time.Second
 
 		for attempt := 1; attempt <= maxPageRetries; attempt++ {
-			fmt.Printf("Crawling page: %s (Attempt %d)\n", pageURL, attempt)
+			c.logger.Info("Crawling page: ", pageURL, "Attempt ", attempt)
 
 			page, err := browser.NewPage()
 			if err != nil {
-				log.Printf("Attempt %d: could not create new page: %v", attempt, err)
+				c.logger.Error("could not create new page: ", err, " | Attempt: ", attempt)
 				time.Sleep(retryDelay)
 				continue
 			}
@@ -120,7 +125,7 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 				"Referer":    "https://google.com",
 			})
 			if err != nil {
-				log.Printf("Attempt %d: could not set extra headers: %v", attempt, err)
+				c.logger.Error("could not set extra headers: ", err, " | Attempt: ", attempt)
 				page.Close()
 				time.Sleep(retryDelay)
 				continue
@@ -135,7 +140,7 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 				Timeout:   playwright.Float(float64(playwrightTimeout)),
 			})
 			if err != nil {
-				log.Printf("Attempt %d: Error navigating to %s: %v", attempt, pageURL, err)
+				c.logger.Error("Error navigating to: ", pageURL, " | Attempt: ", attempt, " error: ", err)
 				page.Close()
 				time.Sleep(retryDelay)
 				continue
@@ -144,12 +149,12 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 			// Scroll to load all content
 			err = c.autoScroll(page)
 			if err != nil {
-				log.Printf("Attempt %d: Error during auto-scrolling: %v", attempt, err)
+				c.logger.Error("Error during auto-scroll: ", err, " | Attempt: ", attempt)
 			}
 
 			content, err := page.Content()
 			if err != nil {
-				log.Printf("Attempt %d: could not get page content: %v", attempt, err)
+				c.logger.Error("could not get page content: ", err, " | Attempt: ", attempt)
 				page.Close()
 				time.Sleep(retryDelay)
 				continue
@@ -158,16 +163,16 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 
 			doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
 			if err != nil {
-				log.Printf("Attempt %d: failed to parse HTML from %s: %v", attempt, pageURL, err)
+				c.logger.Error("failed to parse HTML from: ", pageURL, " | Attempt: ", attempt, " error: ", err)
 				time.Sleep(retryDelay)
 				continue
 			}
 
 			postLinks := c.extractPostLinksFromSelection(doc)
 			if len(postLinks) == 0 {
-				log.Printf("No posts found on %s, attempt %d", pageURL, attempt)
+				c.logger.Error("No posts found on ", pageURL, " | Attempt: ", attempt)
 				if attempt == maxPageRetries {
-					log.Printf("Max retries reached for page %s", pageURL)
+					c.logger.Error("Max retries reached for page", pageURL)
 					break
 				}
 				time.Sleep(retryDelay)
@@ -183,7 +188,7 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 
 				post, err := c.CrawlPostDetails(ctx, link)
 				if err != nil {
-					log.Printf("Error crawling post details from %s: %v", link, err)
+					c.logger.Error("Error crawling post: ", link, " | Attempt: ", attempt, " error: ", err)
 					continue
 				}
 				post.City = city
@@ -216,6 +221,7 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 	// Initialize Playwright
 	pw, err := playwright.Run()
 	if err != nil {
+		c.logger.Error("could not start Playwright: ", err)
 		return post, fmt.Errorf("could not start Playwright: %w", err)
 	}
 	defer pw.Stop()
@@ -224,6 +230,7 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 		Headless: playwright.Bool(true),
 	})
 	if err != nil {
+		c.logger.Error("could not launch browser: ", err)
 		return post, fmt.Errorf("could not launch browser: %w", err)
 	}
 	defer browser.Close()
@@ -237,6 +244,7 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 
 		page, err := browser.NewPage()
 		if err != nil {
+			c.logger.Error("could not create new page: ", err, " | Attempt: ", attempt)
 			log.Printf("Attempt %d: could not create new page: %v", attempt, err)
 			time.Sleep(retryDelay)
 			continue
@@ -247,7 +255,7 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 			"Referer":    "https://google.com",
 		})
 		if err != nil {
-			log.Printf("Attempt %d: could not set extra headers: %v", attempt, err)
+			c.logger.Error("could not set extra headers:", err, " | Attempt: ", attempt)
 			page.Close()
 			time.Sleep(retryDelay)
 			continue
@@ -262,7 +270,7 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 			Timeout:   playwright.Float(float64(playwrightTimeout)),
 		})
 		if err != nil {
-			log.Printf("Attempt %d: Error navigating to %s: %v", attempt, postURL, err)
+			c.logger.Error("Error navigating to: ", postURL, " | Attempt: ", attempt, " error: ", err)
 			page.Close()
 			time.Sleep(retryDelay)
 			continue
@@ -270,7 +278,7 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 
 		content, err := page.Content()
 		if err != nil {
-			log.Printf("Attempt %d: could not get page content: %v", attempt, err)
+			c.logger.Error("could not get page content: ", err, " | Attempt: ", attempt)
 			page.Close()
 			time.Sleep(retryDelay)
 			continue
@@ -279,7 +287,7 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 
 		doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
 		if err != nil {
-			log.Printf("Attempt %d: failed to parse HTML: %v", attempt, err)
+			c.logger.Error("could not parse HTML from: ", postURL, " | Attempt: ", attempt, " error: ", err)
 			time.Sleep(retryDelay)
 			continue
 		}
@@ -293,7 +301,7 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 
 		// Check if essential details are present
 		if post.Title == "" || post.Description == "" {
-			log.Printf("Attempt %d: Missing essential post details for %s", attempt, postURL)
+			c.logger.Error("Missing essential post details for: ", postURL, " | Attempt: ", attempt)
 			time.Sleep(retryDelay)
 			continue
 		}
@@ -305,6 +313,7 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 		return post, nil
 	}
 
+	c.logger.Error("failed to crawl post details from", postURL, " after ", maxRetries, " attempts")
 	return post, fmt.Errorf("failed to crawl post details from %s after %d attempts", postURL, maxRetries)
 }
 
@@ -325,6 +334,7 @@ func (c *DivarCrawler) autoScroll(page playwright.Page) error {
             return document.querySelectorAll('div.kt-post-card__body').length;
         }`)
 		if err != nil {
+			c.logger.Error("error scrolling page: ", err)
 			return fmt.Errorf("error scrolling page: %w", err)
 		}
 
@@ -336,6 +346,7 @@ func (c *DivarCrawler) autoScroll(page playwright.Page) error {
             return document.querySelectorAll('div.kt-post-card__body').length;
         }`)
 		if err != nil {
+			c.logger.Error("error counting page: ", err)
 			return fmt.Errorf("error counting posts: %w", err)
 		}
 
@@ -348,7 +359,7 @@ func (c *DivarCrawler) autoScroll(page playwright.Page) error {
 		case string:
 			postCount, _ = strconv.Atoi(v)
 		default:
-			log.Printf("Unexpected type for post count: %T", currentPostCount)
+			c.logger.Error("Unexpected type for post count: ", currentPostCount)
 			break
 		}
 

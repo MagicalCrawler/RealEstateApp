@@ -12,6 +12,7 @@ import (
 	"github.com/MagicalCrawler/RealEstateApp/utils"
 	"io/ioutil"
 	"log"
+	"log/slog"
 	"math"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ type CrawlerService struct {
 	crawlers    []crawlers.Crawler
 	cityService *CityService
 	repository  *db.PostRepo
+	logger      *slog.Logger
 }
 
 // NewCrawlerService creates a new instance of CrawlerService
@@ -38,6 +40,7 @@ func NewCrawlerService(repository *db.PostRepo) *CrawlerService {
 		},
 		cityService: NewCityService(),
 		repository:  repository,
+		logger:      utils.NewLogger("CrawlerService"),
 	}
 }
 
@@ -66,7 +69,7 @@ func (s *CrawlerService) run() {
 func (s *CrawlerService) executeCrawlCycle() {
 	cities, err := s.cityService.GetCities()
 	if err != nil {
-		log.Printf("Failed to get cities: %v", err)
+		s.logger.Error("Failed to get cities", err)
 		return
 	}
 
@@ -98,7 +101,7 @@ func (s *CrawlerService) executeCrawlCycle() {
 					defer wg.Done()
 					result, err := crawler.Crawl(ctx, city)
 					if err != nil {
-						log.Printf("Crawler error for city %s: %v", city.Name, err)
+						s.logger.Error("Failed to crawl city", city.Name, ", Error: ", err)
 						return
 					}
 
@@ -119,7 +122,7 @@ func (s *CrawlerService) executeCrawlCycle() {
 		totalCPU += avgCPU
 		totalMemory += avgMemory
 
-		log.Println("Chunk completed. Moving to next chunk...")
+		slog.Info("Chunk completed. Moving to next chunk...")
 		time.Sleep(5 * time.Second)
 	}
 
@@ -143,10 +146,10 @@ func (s *CrawlerService) executeCrawlCycle() {
 
 	err = mapAndSaveCrawlerSession(session, *s.repository)
 	if err != nil {
-		log.Fatalf("Error saving crawler session: %v", err)
+		s.logger.Error("Error saving crawler session:", err)
 	}
 
-	log.Println("All crawlers completed. Waiting for next cycle...")
+	s.logger.Info("All crawlers completed. Waiting for next cycle...")
 }
 
 // Helper functions and types
@@ -222,6 +225,8 @@ func monitorResources(ctx context.Context, sampleInterval time.Duration) (float6
 		memSamples []float64
 	)
 
+	logger := utils.NewLogger("CrawlerService")
+
 	ticker := time.NewTicker(sampleInterval)
 	defer ticker.Stop()
 
@@ -232,7 +237,7 @@ func monitorResources(ctx context.Context, sampleInterval time.Duration) (float6
 		case <-ticker.C:
 			cpuPercent, err := cpu.Percent(0, false)
 			if err != nil {
-				log.Printf("Error getting CPU usage: %v", err)
+				logger.Error("Failed to get cpu percent", err)
 				continue
 			}
 			if len(cpuPercent) > 0 {
@@ -241,7 +246,7 @@ func monitorResources(ctx context.Context, sampleInterval time.Duration) (float6
 
 			memStat, err := mem.VirtualMemory()
 			if err != nil {
-				log.Printf("Error getting memory usage: %v", err)
+				logger.Error("Failed to get mem usage", err)
 				continue
 			}
 			memSamples = append(memSamples, memStat.UsedPercent)
@@ -287,7 +292,10 @@ func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) er
 		FinishedAt:  session.EndTime,
 	}
 
+	logger := utils.NewLogger("CrawlerService")
+
 	if _, err := repository.CrawlHistorySaving(crawlHistory); err != nil {
+		logger.Error("failed to save CrawlHistory: ", err)
 		return fmt.Errorf("failed to save CrawlHistory: %w", err)
 	}
 
@@ -301,6 +309,7 @@ func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) er
 
 		_, err := repository.PostSaving(dbPost.UniqueCode, "divar.ir")
 		if err != nil {
+			logger.Error("failed to save post: ", post.ID, "; error: ", err)
 			log.Printf("failed to save post %s: %v", post.ID, err)
 			continue
 		}
@@ -337,6 +346,7 @@ func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) er
 
 		_, err = repository.PostHistorySaving(postHistory, dbPost, crawlHistory)
 		if err != nil {
+			logger.Error("failed to save PostHistory for post: ", post.ID, "; error: ", err)
 			log.Printf("failed to save PostHistory for post %s: %v", post.ID, err)
 			continue
 		}
