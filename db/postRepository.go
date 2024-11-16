@@ -2,10 +2,12 @@ package db
 
 import (
 	"errors"
+	"log/slog"
+	"strings"
+
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	"github.com/MagicalCrawler/RealEstateApp/types"
 	"gorm.io/gorm"
-	"strings"
 )
 
 type PostRepo interface {
@@ -15,14 +17,42 @@ type PostRepo interface {
 	PostSaving(uniCode string, src types.WebsiteSource) (models.Post, error)
 	PostHistorySaving(postHistory models.PostHistory, post models.Post, crawlHistory models.CrawlHistory) (models.PostHistory, error)
 	CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error)
+	CrawlHistoryIsExist(crawlHistory models.CrawlHistory) bool
+	GetMostVisitedPost() ([]models.Post, error)
 }
 
 type PostRepository struct {
 	dbConnection *gorm.DB
+	logger       *slog.Logger
 }
 
 func NewPostRepository(dbConnection *gorm.DB) PostRepo {
 	return PostRepository{dbConnection: dbConnection}
+}
+func (pr PostRepository) CrawlHistoryIsExist(crawlHistory models.CrawlHistory) bool {
+	var isExist bool
+	err := pr.dbConnection.Table("crawl_histories").
+		Select("count(*) > 0").
+		Where("id = ?", crawlHistory.ID).
+		Find(&isExist).Error
+	if err != nil {
+		return false
+	}
+	return isExist
+}
+func (pr PostRepository) GetMostVisitedPost() ([]models.Post, error) {
+	var posts []models.Post
+
+	err := pr.dbConnection.Table("posts").
+		Order("WatchedNum DESC").
+		Limit(10).
+		Find(&posts).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
 }
 
 func (pr PostRepository) PostIsExist(post models.Post) bool {
@@ -33,7 +63,6 @@ func (pr PostRepository) PostIsExist(post models.Post) bool {
 	} else {
 		return isExist
 	}
-	return false
 }
 func (pr PostRepository) PostSaving(uniCode string, src types.WebsiteSource) (models.Post, error) {
 	post := models.Post{
@@ -65,7 +94,7 @@ func (pr PostRepository) PostHistoryIsExist(postHistory models.PostHistory) bool
 	} else {
 		return isExist
 	}
-	return false
+
 }
 func (pr PostRepository) FindByUnicode(UniCode string) (models.Post, models.PostHistory, error) {
 	var post models.Post
