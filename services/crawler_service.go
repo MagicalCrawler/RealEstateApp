@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"github.com/MagicalCrawler/RealEstateApp/crawlers"
 	"github.com/MagicalCrawler/RealEstateApp/crawlers/divar"
+	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	crawlerModels "github.com/MagicalCrawler/RealEstateApp/models/crawler"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
-	"gorm.io/gorm"
 	"io/ioutil"
 	"log"
 	"math"
@@ -26,18 +26,18 @@ import (
 type CrawlerService struct {
 	crawlers    []crawlers.Crawler
 	cityService *CityService
-	db          *gorm.DB
+	repository  *db.PostRepo
 }
 
 // NewCrawlerService creates a new instance of CrawlerService
-func NewCrawlerService(db *gorm.DB) *CrawlerService {
+func NewCrawlerService(repository *db.PostRepo) *CrawlerService {
 	return &CrawlerService{
 		crawlers: []crawlers.Crawler{
 			divar.NewDivarCrawler(),
 			// Add other crawler implementations here
 		},
 		cityService: NewCityService(),
-		db:          db,
+		repository:  repository,
 	}
 }
 
@@ -141,7 +141,7 @@ func (s *CrawlerService) executeCrawlCycle() {
 		fmt.Println("Error saving session to JSON:", err)
 	}
 
-	err = mapAndSaveCrawlerSession(session, s.db)
+	err = mapAndSaveCrawlerSession(session, *s.repository)
 	if err != nil {
 		log.Fatalf("Error saving crawler session: %v", err)
 	}
@@ -276,7 +276,7 @@ func (cs *CrawlerSession) saveToJSONFile(filename string) error {
 	return nil
 }
 
-func mapAndSaveCrawlerSession(session CrawlerSession, db *gorm.DB) error {
+func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) error {
 	// 1. نگاشت CrawlHistory
 	crawlHistory := models.CrawlHistory{
 		PostNum:     uint(len(session.Posts)),
@@ -287,7 +287,7 @@ func mapAndSaveCrawlerSession(session CrawlerSession, db *gorm.DB) error {
 		FinishedAt:  session.EndTime,
 	}
 
-	if err := db.Create(&crawlHistory).Error; err != nil {
+	if _, err := repository.CrawlHistorySaving(crawlHistory); err != nil {
 		return fmt.Errorf("failed to save CrawlHistory: %w", err)
 	}
 
@@ -298,7 +298,9 @@ func mapAndSaveCrawlerSession(session CrawlerSession, db *gorm.DB) error {
 			UniqueCode: post.ID,
 			Website:    "Divar", // فرض بر اینکه این اطلاعات موجود است
 		}
-		if err := db.FirstOrCreate(&dbPost, "unique_code = ?", dbPost.UniqueCode).Error; err != nil {
+
+		_, err := repository.PostSaving(dbPost.UniqueCode, "divar.ir")
+		if err != nil {
 			log.Printf("failed to save post %s: %v", post.ID, err)
 			continue
 		}
@@ -333,11 +335,11 @@ func mapAndSaveCrawlerSession(session CrawlerSession, db *gorm.DB) error {
 			postHistory.CostPerPerson = post.RentalMetadata.ExtraPersonCost
 		}
 
-		if err := db.Create(&postHistory).Error; err != nil {
+		_, err = repository.PostHistorySaving(postHistory, dbPost, crawlHistory)
+		if err != nil {
 			log.Printf("failed to save PostHistory for post %s: %v", post.ID, err)
 			continue
 		}
-
 	}
 
 	return nil

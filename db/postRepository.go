@@ -13,7 +13,8 @@ type PostRepo interface {
 	PostHistoryIsExist(postHistory models.PostHistory) bool
 	FindByUnicode(UniCode string) (models.Post, models.PostHistory, error)
 	PostSaving(uniCode string, src types.WebsiteSource) (models.Post, error)
-	//Separate(url string) (types.WebsiteSource, string)
+	PostHistorySaving(postHistory models.PostHistory, post models.Post, crawlHistory models.CrawlHistory) (models.PostHistory, error)
+	CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error)
 }
 
 type PostRepository struct {
@@ -45,6 +46,7 @@ func (pr PostRepository) PostSaving(uniCode string, src types.WebsiteSource) (mo
 	}
 	return post, errors.New("Post already exists")
 }
+
 func Separate(url string) (types.WebsiteSource, string) {
 	var webSite types.WebsiteSource
 	mySlice := strings.SplitN(url, "/", 6)
@@ -74,7 +76,7 @@ func (pr PostRepository) FindByUnicode(UniCode string) (models.Post, models.Post
 
 }
 
-/*func (daba PostRepository) PostHistorySaving(postHistory models.PostHistory, post models.Post, crawlHistory models.CrawlHistory) (models.PostHistory, error) {
+func (daba PostRepository) PostHistorySaving(postHistory models.PostHistory, post models.Post, crawlHistory models.CrawlHistory) (models.PostHistory, error) {
 
 	myPostHistory := models.PostHistory{
 		Post:           post,
@@ -94,16 +96,31 @@ func (pr PostRepository) FindByUnicode(UniCode string) (models.Post, models.Post
 		FloorsNum:      postHistory.FloorsNum,
 		HasStorage:     postHistory.HasStorage,
 		HasElevator:    postHistory.HasElevator,
-		HsaParking:     postHistory.HsaParking,
+		HasParking:     postHistory.HasParking,
 		ImageURL:       postHistory.ImageURL,
 		Description:    postHistory.Description,
 		CrawlHistory:   crawlHistory,
 		CrawlHistoryID: crawlHistory.ID,
 	}
-	if !PostHistoryIsExist(daba.dbConnection, myPostHistory) {
+
+	if !daba.PostHistoryIsExist(myPostHistory) {
 		err := daba.dbConnection.Create(&myPostHistory).Error
 		return myPostHistory, err
 	}
 	return myPostHistory, errors.New("Post history already exists")
 }
-*/
+
+func (dba PostRepository) CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error) {
+	myCrawlHistory := models.CrawlHistory{
+		ID:          crawlHistory.ID,
+		PostNum:     crawlHistory.PostNum,
+		CpuUsage:    crawlHistory.CpuUsage,
+		MemoryUsage: crawlHistory.MemoryUsage,
+		RequestsNum: crawlHistory.RequestsNum,
+		StartedAt:   crawlHistory.StartedAt,
+		FinishedAt:  crawlHistory.FinishedAt,
+	}
+
+	err := dba.dbConnection.Create(&myCrawlHistory).Error
+	return myCrawlHistory, err
+}
