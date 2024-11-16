@@ -10,6 +10,9 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+	"strings"
+
+	"gorm.io/gorm"
 
 	"github.com/MagicalCrawler/RealEstateApp/models"
 )
@@ -27,7 +30,7 @@ func getOrCreateUserRunCommand(message *Message) models.User {
 		sendMessage(message.Chat.ID, "There was an error checking your profile. Please try again later.")
 		return empty_user
 	}
-	if user == empty_user {
+	if user.ID == 0 {
 		// If the user does not exist, create a new user
 		user = models.User{TelegramID: uint64(message.From.ID), Role: models.Role(models.USER)}
 		log.Printf("User with id : %d created with role regular", message.From.ID)
@@ -40,6 +43,7 @@ func getOrCreateUserRunCommand(message *Message) models.User {
 	}
 	return user
 }
+
 func pollUpdates(ctx context.Context) {
 	offset := 0
 
@@ -64,6 +68,7 @@ func pollUpdates(ctx context.Context) {
 					handleMessage(update.Message)
 				} else if update.Callback != nil {
 					// handleCallback(update.Callback)
+					handleCallbackQuery(update.Callback)
 				}
 			}
 
@@ -276,4 +281,154 @@ func sendLocationRequest(chatID int) {
 	}
 
 	sendMessageWithKeyboard(chatID, "Please share your location:", keyboard)
+}
+
+
+func createInlineKeyboardFromOptions(options []string) InlineKeyboardMarkup {
+	buttons := make([][]InlineKeyboardButton, 0)
+	for _, option := range options {
+		row := []InlineKeyboardButton{
+			{
+				Text: option,
+				Data: option, // Use the filter name as callback data
+			},
+		}
+		buttons = append(buttons, row)
+	}
+	return InlineKeyboardMarkup{InlineKeyboard: buttons}
+}
+
+func handleCallbackQuery(callbackQuery *CallbackQuery) {
+	userID := uint64(callbackQuery.From.ID)
+	_, err := userRepository.FindByTelegramID(userID)
+
+	if err != nil {
+		log.Printf("Error fetching user: %v", err)
+		return
+	}
+
+	selectedFilter := callbackQuery.Data
+	chatID := int64(callbackQuery.Message.Chat.ID)
+	switch selectedFilter {
+	case "Price Range":
+		promptUserForInput(chatID, "Enter price range (e.g., 100000-200000):")
+	case "City":
+		promptUserForInput(chatID, "Enter city name:")
+	case "Neighborhood":
+		promptUserForInput(chatID, "Enter neighborhood name:")
+	case "Area Range":
+		promptUserForInput(chatID, "Enter area range (e.g., 50-200 square meters):")
+	case "Bedroom Count Range":
+		promptUserForInput(chatID, "Enter bedroom count range (e.g., 1-3):")
+	case "Category (Rent/Buy/Mortgage)":
+		promptUserForInput(chatID, "Enter category (Rent/Buy/Mortgage):")
+	case "Building Age Range":
+		promptUserForInput(chatID, "Enter building age range (e.g., 0-20 years):")
+	case "Property Type (Apartment/Villa)":
+		promptUserForInput(chatID, "Enter property type (Apartment/Villa):")
+	case "Floor Range":
+		promptUserForInput(chatID, "Enter floor range (e.g., 1-10):")
+	case "Storage Availability":
+		promptUserForInput(chatID, "Enter storage availability (Yes/No):")
+	case "Elevator Availability":
+		promptUserForInput(chatID, "Enter elevator availability (Yes/No):")
+	case "Advertisement Creation Date Range":
+		promptUserForInput(chatID, "Enter advertisement creation date range (e.g., YYYY-MM-DD to YYYY-MM-DD):")
+	default:
+		sendMessage(callbackQuery.Message.Chat.ID, "Invalid filter selection.")
+	}
+}
+
+func saveUserFilterInput(db *gorm.DB, userID uint, filterType, value string) {
+	var filterItem models.FilterItem
+
+	// Find existing FilterItem for the user (if any)
+	if err := db.Where("user_id = ?", userID).First(&filterItem).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// Initialize a new FilterItem if none exists
+			filterItem = models.FilterItem{}
+		} else {
+			log.Printf("Error retrieving filter item for user %d: %v", userID, err)
+			return
+		}
+	}
+
+	// Update the relevant field based on filterType
+	switch filterType {
+	case "Price Range":
+		// Assuming the format is "min-max"
+		var priceMin, priceMax float64
+		if _, err := fmt.Sscanf(value, "%f-%f", &priceMin, &priceMax); err == nil {
+			filterItem.PriceMin = priceMin
+			filterItem.PriceMax = priceMax
+		}
+	case "City":
+		filterItem.City = value
+	case "Neighborhood":
+		filterItem.Neighborhood = value
+	case "Area Range":
+		// Assuming the format is "min-max"
+		var areaMin, areaMax int
+		if _, err := fmt.Sscanf(value, "%d-%d", &areaMin, &areaMax); err == nil {
+			filterItem.AreaMin = areaMin
+			filterItem.AreaMax = areaMax
+		}
+	case "Bedroom Count Range":
+		// Assuming the format is "min-max"
+		var bedroomsMin, bedroomsMax int
+		if _, err := fmt.Sscanf(value, "%d-%d", &bedroomsMin, &bedroomsMax); err == nil {
+			filterItem.BedroomsMin = bedroomsMin
+			filterItem.BedroomsMax = bedroomsMax
+		}
+	case "Category (Rent/Buy/Mortgage)":
+		filterItem.Category = value
+	case "Building Age Range":
+		// Assuming the format is "min-max"
+		var ageMin, ageMax int
+		if _, err := fmt.Sscanf(value, "%d-%d", &ageMin, &ageMax); err == nil {
+			filterItem.AgeMin = ageMin
+			filterItem.AgeMax = ageMax
+		}
+	case "Property Type (Apartment/Villa)":
+		filterItem.PropertyType = value
+	case "Floor Range":
+		// Assuming the format is "min-max"
+		var floorMin, floorMax int
+		if _, err := fmt.Sscanf(value, "%d-%d", &floorMin, &floorMax); err == nil {
+			filterItem.FloorMin = floorMin
+			filterItem.FloorMax = floorMax
+		}
+	case "Storage Availability":
+		filterItem.HasStorage = (value == "yes")
+	case "Elevator Availability":
+		filterItem.HasElevator = (value == "yes")
+	case "Advertisement Creation Date Range":
+		// Assuming the format is "YYYY-MM-DD to YYYY-MM-DD"
+		var startDate, endDate time.Time
+		dates := strings.Split(value, " to ")
+		if len(dates) == 2 {
+			startDate, _ = time.Parse("2006-01-02", dates[0])
+			endDate, _ = time.Parse("2006-01-02", dates[1])
+			filterItem.CreatedDateStart = startDate
+			filterItem.CreatedDateEnd = endDate
+		}
+	}
+
+	// Save or update the FilterItem in the database
+	filterItem.UserID = userID
+	if filterItem.ID == 0 {
+		// Create a new record
+		if _, err := filterRepository.Create(filterItem); err != nil {
+			log.Printf("Error creating filter item for user %d: %v", userID, err)
+		}
+	} else {
+		// Update the existing record
+		if _, err := filterRepository.Update(filterItem.ID, filterItem); err != nil {
+			log.Printf("Error updating filter item for user %d: %v", userID, err)
+		}
+	}
+}
+
+func promptUserForInput(chatID int64, prompt string) {
+	sendMessage(int(chatID), prompt)
 }
