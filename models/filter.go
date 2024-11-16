@@ -26,6 +26,7 @@ type FilterItem struct {
 	HasElevator      bool        `json:"has_elevator"`
 	CreatedDateStart time.Time   `json:"created_date_start"`
 	CreatedDateEnd   time.Time   `json:"created_date_end"`
+	UserID           uint        `json:"user_id"`
 	WatchLists       []WatchList `gorm:"foreignKey:FilterItemID"` // Optional, for reverse lookup
 }
 
