@@ -35,6 +35,11 @@ func NewConnection() *gorm.DB {
 
 	datab.AutoMigrate(&models.User{})
 	datab.AutoMigrate(&models.Post{}, &models.PostHistory{}, &models.Bookmark{})
+
+	err = datab.AutoMigrate(&models.CrawlHistory{})
+	if err != nil {
+		log.Fatalf("Failed to migrate CrawlHistory model: %v", err)
+	}
 	// Run auto-migrations for FilterItem and WatchList models
 	if err := datab.AutoMigrate(&models.FilterItem{}, &models.WatchList{}); err != nil {
 		panic("AutoMigrate Failed")
@@ -97,7 +102,7 @@ func postsSeeds(datab *gorm.DB) {
 		BuyMode:        types.Shopping,
 		Building:       types.Apartment,
 		HasStorage:     true,
-		HsaParking:     true,
+		HasParking:     true,
 		HasElevator:    true,
 		ImageURL:       "https://s100.divarcdn.com/static/photo/neda/post/YjOoz1jbtpZUd2h7EqFl_Q/3078dfe4-3251-43b2-9404-04baecfa031b.jpg",
 		Description:    "توضیحات\n❌❌❌ فیلم ، عکس و مشخصات ۱۰۰٪ واقعی ❌❌❌\n\n‼️‼️‼️یکی از جذابترین یکخوابهای منطقه ‼️‼️‼️\n\n☑️ نور و نقشه سوپر استثنایی\n\n☑️ داخل واحد در حد کلیدنخورده (کلا یکسال ساکن داشته)\n\n☑️ دسترسی عالی به اتوبانها، مراکز خرید، بیمارستان و هر آنچه که برای یه زندگی آروم نیازمندش هستین\n\n☑️ فایل کاملا شخصی ، بازدید آزاد ( ۸صبح تا ۱۰شب )\n\n☑️ قابلیت دریافت ۱ میلیارد وام\n\n☑️ قابلیت ۹۰۰ میلیون رهن کامل ( کمتر از یک هفته )\n\n☑️ نقدینگی لازم برای شما »»»»»» ۵ میلیارد !!!!!!\n\n❌❌❌❌ مالک فروشنده قطعی و واقعی ❌❌❌❌\n\n\nفایلهای مشابه؛\n\n۶۴متر ، ۱۲ ساله ( بلوار اباذر )\n۵۸ متر ، ۵ ساله ( بلوار فردوس )\n۶۰ متر ، ۱۰ ساله ( جنت آباد جنوبی )\n۶۱ متر ، ۹ ساله ( ستاری ، مهستان )\n۶۰ متر ، نوساز ( باکس پونک )\n۵۵ متر ، ۱۴ ساله ( کاشانی ، آلاله )\n\n\n✍️ برای دریافت اطلاعات بیشتر لطفاً تماس بگیرید\n\n❇️ املاک بزرگ باراد\nرمضانی",
@@ -135,7 +140,7 @@ func postsSeeds(datab *gorm.DB) {
 		Age:            9,
 		FloorsNum:      5,
 		HasStorage:     true,
-		HsaParking:     true,
+		HasParking:     true,
 		HasElevator:    true,
 		ImageURL:       "https://s100.divarcdn.com/static/photo/neda/post/xMScyIZiNPYUP9L_fAJrpw/5b5d3bc8-d2bd-44bc-84e4-8a512ef2387e.jpg",
 		Description:    "توضیحات\nآپارتمان 62 متری\nیک خواب دارای کمد دیواری\nآسانسور\nپارکینگ\nانباری\nبالکن\nسرویس ایرانی و فرنگی\nآشپزخانه MDF\nایفون تصویری\nدرب ریموت کنترل\nنما سنگ\nساختمان جنوبی\nنورگیر و رو به آفتاب\nدسترسی سریع به مترو طالقانی پارک هنرمندان\nتخفیف هنگام قرارداد\nمشاور املاک\nخانم قمری\n\n\n",
@@ -167,7 +172,7 @@ func postsSeeds(datab *gorm.DB) {
 		Age:            5,
 		FloorsNum:      6,
 		HasStorage:     false,
-		HsaParking:     true,
+		HasParking:     true,
 		HasElevator:    true,
 		ImageURL:       "https://s100.divarcdn.com/static/photo/neda/post/ac9wb68uPe6R7B374NLECw/72a83800-d2b0-45c6-8f4b-aba2be95853d.jpg",
 		Description:    "توضیحات\nکل طبقه ۶واحد تک واحد\nخوش نقشه بدون پرتی\n۳بهر نور همسایهای عالی محله دنج ارام\nاین ملک شخصی میباشد\nداری مستجر\nکابینت های گلاس\nیکی از بهترین کوچه شاپور می باشد",
@@ -201,7 +206,7 @@ func postsSeeds(datab *gorm.DB) {
 		Age:            7,
 		FloorsNum:      6,
 		HasStorage:     true,
-		HsaParking:     true,
+		HasParking:     true,
 		HasElevator:    true,
 		ImageURL:       "https://s100.divarcdn.com/static/photo/afra/post/2W3iDULmlVViIh1KfSMHnQ/932cab09-f723-460c-9f01-5f9032d632b7.jpg",
 		Description:    "با درود فراوان\n\nملک ۲کله و ۳نبش و شخصی ساز است\nواقع در یکی از لوکیشن های خوب منطقه۵\n\nقابل توجه مشاورین محترم ملک به هیچ وجه کارشناسی ندارد ، از آوردن همکاران خود به عنوان مشتری جدا خودداری کنید چون قطع همکاری میشه ، برای دریافت فیلم و عکسهای واحد جهت کارشناسی و معرفی به مشتری ، در واتساپ پیام بدهید با ارسال نام خودتون و املاکتون.\nکمیسیون فروش این ملک ۱٪ تقدیم میگردد و تخفیف باتوجه به شرایط پرداختی خریدار محترم منظور می‌گردد.\n\nبا احترام گلنام",
@@ -235,7 +240,7 @@ func postsSeeds(datab *gorm.DB) {
 		Age:            0,
 		FloorsNum:      2,
 		HasStorage:     false,
-		HsaParking:     false,
+		HasParking:     false,
 		HasElevator:    false,
 		ImageURL:       "https://s100.divarcdn.com/static/photo/neda/post/i8c7Vnn3BsKLu6dIYq9m5g/56a67e14-59be-4804-bd1b-49a175c31c47.jpg",
 		Description:    "سند مسکونی موقعیت اداری\nدر دو طبقه ، دو واحدی\nنوساز ، کلید نخورده\nواقع در بالای فروشگاه\nآگهی توسط مالک درج شده ، فروشنده بدون واسطه",
@@ -269,7 +274,7 @@ func postsSeeds(datab *gorm.DB) {
 		Age:            13,
 		FloorsNum:      5,
 		HasStorage:     true,
-		HsaParking:     false,
+		HasParking:     false,
 		HasElevator:    true,
 		ImageURL:       "https://s100.divarcdn.com/static/photo/neda/post/7Ih77OjS2R4oNOuhL_vMHA/4199785b-cd97-4003-a162-8fdbe39f24a9.jpg",
 		Description:    "آپارتمان کاملا نو سازی شده ،کاغذ دیواری ،کابینت بندی ،هود وسینک، کم دیواری ،کاشی وسنگ و روشویی توالت ،کولرآبی نو، در تراس داخل آشپزخانه دوجداره بزرگ ویکسره می‌باشد،سندمنگوله دار ،\nآدرس شهرستان بهارستان ،شهرگلستان",

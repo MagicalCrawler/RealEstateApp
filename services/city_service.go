@@ -5,6 +5,7 @@ import (
 	"fmt"
 	crawlerModels "github.com/MagicalCrawler/RealEstateApp/models/crawler"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -16,12 +17,14 @@ type CityService struct {
 	cacheDuration time.Duration
 	cacheMutex    sync.Mutex
 	lastUpdated   time.Time
+	logger        *slog.Logger
 }
 
 // NewCityService creates a new instance of CityService
 func NewCityService() *CityService {
 	return &CityService{
-		cacheDuration: 30 * time.Minute,
+		cacheDuration: 6 * time.Hour,
+		logger:        utils.NewLogger("City_Service"),
 	}
 }
 
@@ -34,18 +37,22 @@ func (s *CityService) GetCities() ([]crawlerModels.City, error) {
 		return s.cache, nil
 	}
 
-	resp, err := http.Get("https://api.divar.ir/v8/places/cities?level=all")
+	divarAllCityAPIAddress := utils.GetConfig("API_CITIES_URL")
+	resp, err := http.Get(divarAllCityAPIAddress)
 	if err != nil {
+		s.logger.Error("failed to fetch cities ", err)
 		return nil, fmt.Errorf("failed to fetch cities: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		s.logger.Error("unexpected status code ", resp.StatusCode)
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	var cityResponse crawlerModels.CityResponse
 	if err := json.NewDecoder(resp.Body).Decode(&cityResponse); err != nil {
+		s.logger.Error("failed to decode response ", err)
 		return nil, fmt.Errorf("failed to decode city response: %w", err)
 	}
 
@@ -54,6 +61,7 @@ func (s *CityService) GetCities() ([]crawlerModels.City, error) {
 	// Filter cities based on app settings
 	provincialCenters, err := utils.LoadAppSettingsFile()
 	if err != nil {
+		s.logger.Error("failed to load app settings ", err)
 		return nil, fmt.Errorf("failed to load app settings: %w", err)
 	}
 

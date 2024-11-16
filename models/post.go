@@ -7,7 +7,7 @@ import (
 
 type Post struct {
 	UniqueCode string              `gorm:"not null;unique"`
-	Website    types.WebsiteSource `gorm:"not nll;type:string"`
+	Website    types.WebsiteSource `gorm:"not null;type:string"`
 	WatchedNum uint
 	gorm.Model
 }

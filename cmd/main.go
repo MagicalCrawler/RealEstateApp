@@ -19,11 +19,12 @@ func main() {
 	logger.Debug("Initialize DB connection")
 	dbConnection := db.NewConnection()
 
-  logger.Debug("Initialize crawler service jobs")
-	crawlerService := services.NewCrawlerService()
+	logger.Debug("Initialize crawler service jobs")
+	postRepository := db.NewPostRepository(dbConnection)
+	crawlerService := services.NewCrawlerService(&postRepository)
 	crawlerService.Start()
 
-  logger.Debug("Run the Telegram bot")
+	logger.Debug("Run the Telegram bot")
 	client.Run(dbConnection)
 
 	select {}
