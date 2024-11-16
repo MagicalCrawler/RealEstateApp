@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"github.com/MagicalCrawler/RealEstateApp/db"
 	"log"
 	"strconv"
 	"strings"
@@ -425,7 +426,12 @@ func (cmd *AdminCommand) AllowedRoles() []models.Role {
 type MonitorCommand struct{}
 
 func (cmd *MonitorCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered Monitor"
+	msg := "You entered Monitor\nCrawls"
+	/////////////
+	cdb := db.NewConnection()
+	allCrawls := cdb.Find(&models.CrawlHistory{})
+	msg += fmt.Sprintf("%v", allCrawls)
+	/////////////
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 	return
 }
