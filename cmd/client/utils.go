@@ -27,7 +27,7 @@ func getOrCreateUserRunCommand(message *Message) models.User {
 		sendMessage(message.Chat.ID, "There was an error checking your profile. Please try again later.")
 		return empty_user
 	}
-	if user == empty_user {
+	if user.ID == 0 {
 		// If the user does not exist, create a new user
 		user = models.User{TelegramID: uint64(message.From.ID), Role: models.Role(models.USER)}
 		log.Printf("User with id : %d created with role regular", message.From.ID)
@@ -40,6 +40,7 @@ func getOrCreateUserRunCommand(message *Message) models.User {
 	}
 	return user
 }
+
 func pollUpdates(ctx context.Context) {
 	offset := 0
 
