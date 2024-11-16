@@ -20,6 +20,7 @@ type Command interface {
 var (
 	CommandRegistry map[string]Command
 	userRepository  db.UserRepository
+	postRepository  db.PostRepository
 	apiURL          string
 )
 

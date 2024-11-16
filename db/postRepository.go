@@ -15,6 +15,7 @@ type PostRepo interface {
 	PostSaving(uniCode string, src types.WebsiteSource) (models.Post, error)
 	PostHistorySaving(postHistory models.PostHistory, post models.Post, crawlHistory models.CrawlHistory) (models.PostHistory, error)
 	CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error)
+	GetCrawlHistory() (crawlHistory []models.CrawlHistory, err error)
 }
 
 type PostRepository struct {
@@ -123,4 +124,11 @@ func (dba PostRepository) CrawlHistorySaving(crawlHistory models.CrawlHistory) (
 
 	err := dba.dbConnection.Create(&myCrawlHistory).Error
 	return myCrawlHistory, err
+}
+
+func (dba PostRepository) GetCrawlHistory() (crawlHistory []models.CrawlHistory, err error) {
+	allCrawls := dba.dbConnection.Find(&models.CrawlHistory{}) // tx *gorm.DB
+	var crawlHistories []models.CrawlHistory
+	allCrawls.Scan(&crawlHistories)
+	return crawlHistories, nil
 }

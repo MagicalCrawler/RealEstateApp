@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"github.com/MagicalCrawler/RealEstateApp/db"
 	"log"
 	"strconv"
 	"strings"
@@ -428,9 +427,10 @@ type MonitorCommand struct{}
 func (cmd *MonitorCommand) Execute(message *Message, user *models.User) {
 	msg := "You entered Monitor\nCrawls"
 	/////////////
-	cdb := db.NewConnection()
-	allCrawls := cdb.Find(&models.CrawlHistory{})
-	msg += fmt.Sprintf("%v", allCrawls)
+	crawlHistories, _ := postRepository.GetCrawlHistory()
+	for _, ch := range crawlHistories {
+		msg += fmt.Sprintf("\nID: %d, CPU: %v, Memory: %v\n", ch.ID, ch.CpuUsage, ch.MemoryUsage)
+	}
 	/////////////
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 	return
