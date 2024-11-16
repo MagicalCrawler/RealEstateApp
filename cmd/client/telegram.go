@@ -20,12 +20,13 @@ type Command interface {
 var (
 	CommandRegistry map[string]Command
 	userRepository  db.UserRepository
-	postRepository  db.PostRepository
+	postRepository  db.PostRepo
 	apiURL          string
 )
 
 func Run(dbConnection *gorm.DB) {
 	userRepository = db.CreateNewUserRepository(dbConnection)
+	postRepository = db.NewPostRepository(dbConnection)
 	apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 	initializeCommands()
 

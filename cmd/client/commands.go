@@ -425,11 +425,11 @@ func (cmd *AdminCommand) AllowedRoles() []models.Role {
 type MonitorCommand struct{}
 
 func (cmd *MonitorCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered Monitor\nCrawls"
+	msg := "You entered Monitor\nCrawls\n\n"
 	/////////////
-	crawlHistories, _ := postRepository.GetCrawlHistory()
-	for _, ch := range crawlHistories {
-		msg += fmt.Sprintf("\nID: %d, CPU: %v, Memory: %v\n", ch.ID, ch.CpuUsage, ch.MemoryUsage)
+	crawlHistories := postRepository.GetAllCrawlHistory()
+	for _, crawl := range crawlHistories {
+		msg += fmt.Sprintf("\nID: %v, CPU: %v, Memory: %v\n", crawl.ID, crawl.CpuUsage, crawl.MemoryUsage)
 	}
 	/////////////
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
