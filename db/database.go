@@ -33,7 +33,7 @@ func NewConnection() *gorm.DB {
 		panic("Error connecting to database")
 	}
 
-	datab.AutoMigrate(&models.User{})
+	datab.AutoMigrate(&models.User{}, &models.WatchList{}, &models.FilterItem{})
 	datab.AutoMigrate(&models.Post{}, &models.PostHistory{}, &models.Bookmark{})
 
 	err = datab.AutoMigrate(&models.CrawlHistory{})
@@ -41,9 +41,9 @@ func NewConnection() *gorm.DB {
 		log.Fatalf("Failed to migrate CrawlHistory model: %v", err)
 	}
 	// Run auto-migrations for FilterItem and WatchList models
-	if err := datab.AutoMigrate(&models.FilterItem{}, &models.WatchList{}); err != nil {
-		panic("AutoMigrate Failed")
-	}
+	// if err := datab.AutoMigrate(&models.FilterItem{}, &models.WatchList{}); err != nil {
+	// 	panic("AutoMigrate Failed")
+	// }
 	seedSuperAdminUser(datab, logger)
 	postsSeeds(datab)
 	return datab

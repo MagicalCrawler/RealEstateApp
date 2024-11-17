@@ -456,14 +456,18 @@ func sendFilterConfirmationMenu(chatID int64, filter string) {
 
 func showFilterMenu(chatID int64, userId uint) {
 	// Fetch filters from the database
-	filters, _ := filterRepository.FindByUserID(userId)
-
+	filters, err := filterRepository.FindByUserID(userId)
 	// Create keyboard buttons for each filter
 	var filterButtons [][]KeyboardButton
-	for _, filter := range filters {
-		filterButtons = append(filterButtons, []KeyboardButton{
-			{Text: strconv.Itoa(int(filter.ID))},
-		})
+	if err != nil {
+		log.Printf("No filters found for user %d", userId)
+	} else {
+
+		for _, filter := range filters {
+			filterButtons = append(filterButtons, []KeyboardButton{
+				{Text: strconv.Itoa(int(filter.ID))},
+			})
+		}
 	}
 
 	// Add the "Create New Filter" button
@@ -506,11 +510,10 @@ func showFilterOptions(chatID int) {
 	)
 }
 
-
 func handleFilterSelection(userID uint, filterID uint) {
 
 	updatedFields := map[string]interface{}{
-    "LastFilterItemID":  filterID,
+		"LastFilterItemID": filterID,
 	}
 
 	userRepository.UpdateUser(userID, updatedFields)

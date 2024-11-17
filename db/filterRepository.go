@@ -12,7 +12,8 @@ type FilterItemRepository interface {
 	Update(id uint, updatedData models.FilterItem) (models.FilterItem, error)
 	Delete(id uint) error
 	SearchPostHistory(filter models.FilterItem) ([]models.PostHistory, error)
-	FindByUserID(userID uint) ([]models.FilterItem, error)}
+	FindByUserID(userID uint) ([]models.FilterItem, error)
+}
 
 type FilterItemRepositoryImpl struct {
 	dbConnection *gorm.DB
@@ -125,7 +126,15 @@ func (repo FilterItemRepositoryImpl) SearchPostHistory(filter models.FilterItem)
 func (repo FilterItemRepositoryImpl) FindByUserID(userID uint) ([]models.FilterItem, error) {
 	var filterItems []models.FilterItem
 
-	// Find all filter items for the given User ID
+	// Retrieve filter items
 	err := repo.dbConnection.Where("user_id = ?", userID).Find(&filterItems).Error
-	return filterItems, err
+	if err != nil {
+		return nil, err // Database query failed
+	}
+
+	if len(filterItems) == 0 {
+		return nil, gorm.ErrRecordNotFound // Explicitly signal no records found
+	}
+
+	return filterItems, nil
 }
