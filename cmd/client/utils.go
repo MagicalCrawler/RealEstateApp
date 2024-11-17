@@ -21,6 +21,8 @@ const (
 	timeout = 10
 )
 
+var userLastFilterMap = make(map[uint]uint) // Stores the last filter selected by each user (UserID -> FilterID)
+
 func getOrCreateUserRunCommand(message *Message) models.User {
 	// Check if user already exists by Telegram ID
 	empty_user := models.User{}
@@ -468,7 +470,7 @@ func showFilterMenu(chatID int64, userId uint) {
 	var filterButtons [][]InlineKeyboardButton
 	for _, filter := range filters {
 		filterButtons = append(filterButtons, []InlineKeyboardButton{
-			{Text: strconv.Itoa(int(filter.ID)), Data: fmt.Sprintf("select_filter_%s", filter)},
+			{Text: strconv.Itoa(int(filter.ID)), Data: fmt.Sprintf("select_filter_%s", filter.ID)},
 		})
 	}
 
@@ -508,4 +510,14 @@ func showFilterOptions(chatID int) {
 		msg,
 		createInlineKeyboardFromOptions(filterOptions),
 	)
+}
+
+
+func handleFilterSelection(userID uint, filterID uint) {
+
+	updatedFields := map[string]interface{}{
+    "LastFilterItemID":  filterID,
+	}
+
+	userRepository.UpdateUser(userID, updatedFields)
 }
