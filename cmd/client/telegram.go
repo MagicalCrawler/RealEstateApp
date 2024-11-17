@@ -9,7 +9,6 @@ import (
 	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
-	"gorm.io/gorm"
 )
 
 type Command interface {
@@ -18,15 +17,18 @@ type Command interface {
 }
 
 var (
-	CommandRegistry map[string]Command
-	userRepository  db.UserRepository
-	postRepository  db.PostRepo
-	apiURL          string
+
+	CommandRegistry  map[string]Command
+	userRepository   db.UserRepository
+	postRepository   db.PostRepo
+	filterRepository db.FilterItemRepository
+	apiURL           string
 )
 
-func Run(dbConnection *gorm.DB) {
-	userRepository = db.CreateNewUserRepository(dbConnection)
-	postRepository = db.NewPostRepository(dbConnection)
+func Run(userRepo db.UserRepository, postRepo db.PostRepo) {
+	postRepository = postRepo
+	userRepository = userRepo
+
 	apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 	initializeCommands()
 

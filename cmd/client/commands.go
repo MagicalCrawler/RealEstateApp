@@ -4,11 +4,9 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
-	"time"
 
+	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/models"
-	"gorm.io/gorm"
 )
 
 func initializeCommands() {
@@ -152,160 +150,27 @@ func (cmd *FilterCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.USER}
 }
 
-func createInlineKeyboardFromOptions(options []string) InlineKeyboardMarkup {
-	buttons := make([][]InlineKeyboardButton, 0)
-	for _, option := range options {
-		row := []InlineKeyboardButton{
-			{
-				Text: option,
-				Data: option, // Use the filter name as callback data
-			},
-		}
-		buttons = append(buttons, row)
-	}
-	return InlineKeyboardMarkup{InlineKeyboard: buttons}
-}
-
-func handleCallbackQuery(callbackQuery *CallbackQuery) {
-	userID := uint64(callbackQuery.From.ID)
-	_, err := userRepository.FindByTelegramID(userID)
-
-	if err != nil {
-		log.Printf("Error fetching user: %v", err)
-		return
-	}
-
-	selectedFilter := callbackQuery.Data
-	chatID := int64(callbackQuery.Message.Chat.ID)
-	switch selectedFilter {
-	case "Price Range":
-		promptUserForInput(chatID, "Enter price range (e.g., 100000-200000):")
-	case "City":
-		promptUserForInput(chatID, "Enter city name:")
-	case "Neighborhood":
-		promptUserForInput(chatID, "Enter neighborhood name:")
-	case "Area Range":
-		promptUserForInput(chatID, "Enter area range (e.g., 50-200 square meters):")
-	case "Bedroom Count Range":
-		promptUserForInput(chatID, "Enter bedroom count range (e.g., 1-3):")
-	case "Category (Rent/Buy/Mortgage)":
-		promptUserForInput(chatID, "Enter category (Rent/Buy/Mortgage):")
-	case "Building Age Range":
-		promptUserForInput(chatID, "Enter building age range (e.g., 0-20 years):")
-	case "Property Type (Apartment/Villa)":
-		promptUserForInput(chatID, "Enter property type (Apartment/Villa):")
-	case "Floor Range":
-		promptUserForInput(chatID, "Enter floor range (e.g., 1-10):")
-	case "Storage Availability":
-		promptUserForInput(chatID, "Enter storage availability (Yes/No):")
-	case "Elevator Availability":
-		promptUserForInput(chatID, "Enter elevator availability (Yes/No):")
-	case "Advertisement Creation Date Range":
-		promptUserForInput(chatID, "Enter advertisement creation date range (e.g., YYYY-MM-DD to YYYY-MM-DD):")
-	default:
-		sendMessage(callbackQuery.Message.Chat.ID, "Invalid filter selection.")
-	}
-}
-
-func saveUserFilterInput(db *gorm.DB, userID uint, filterType, value string) {
-	var filterItem models.FilterItem
-
-	// Find existing FilterItem for the user (if any)
-	if err := db.Where("user_id = ?", userID).First(&filterItem).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// Initialize a new FilterItem if none exists
-			filterItem = models.FilterItem{}
-		} else {
-			log.Printf("Error retrieving filter item for user %d: %v", userID, err)
-			return
-		}
-	}
-
-	// Update the relevant field based on filterType
-	switch filterType {
-	case "Price Range":
-		// Assuming the format is "min-max"
-		var priceMin, priceMax float64
-		if _, err := fmt.Sscanf(value, "%f-%f", &priceMin, &priceMax); err == nil {
-			filterItem.PriceMin = priceMin
-			filterItem.PriceMax = priceMax
-		}
-	case "City":
-		filterItem.City = value
-	case "Neighborhood":
-		filterItem.Neighborhood = value
-	case "Area Range":
-		// Assuming the format is "min-max"
-		var areaMin, areaMax int
-		if _, err := fmt.Sscanf(value, "%d-%d", &areaMin, &areaMax); err == nil {
-			filterItem.AreaMin = areaMin
-			filterItem.AreaMax = areaMax
-		}
-	case "Bedroom Count Range":
-		// Assuming the format is "min-max"
-		var bedroomsMin, bedroomsMax int
-		if _, err := fmt.Sscanf(value, "%d-%d", &bedroomsMin, &bedroomsMax); err == nil {
-			filterItem.BedroomsMin = bedroomsMin
-			filterItem.BedroomsMax = bedroomsMax
-		}
-	case "Category (Rent/Buy/Mortgage)":
-		filterItem.Category = value
-	case "Building Age Range":
-		// Assuming the format is "min-max"
-		var ageMin, ageMax int
-		if _, err := fmt.Sscanf(value, "%d-%d", &ageMin, &ageMax); err == nil {
-			filterItem.AgeMin = ageMin
-			filterItem.AgeMax = ageMax
-		}
-	case "Property Type (Apartment/Villa)":
-		filterItem.PropertyType = value
-	case "Floor Range":
-		// Assuming the format is "min-max"
-		var floorMin, floorMax int
-		if _, err := fmt.Sscanf(value, "%d-%d", &floorMin, &floorMax); err == nil {
-			filterItem.FloorMin = floorMin
-			filterItem.FloorMax = floorMax
-		}
-	case "Storage Availability":
-		filterItem.HasStorage = (value == "yes")
-	case "Elevator Availability":
-		filterItem.HasElevator = (value == "yes")
-	case "Advertisement Creation Date Range":
-		// Assuming the format is "YYYY-MM-DD to YYYY-MM-DD"
-		var startDate, endDate time.Time
-		dates := strings.Split(value, " to ")
-		if len(dates) == 2 {
-			startDate, _ = time.Parse("2006-01-02", dates[0])
-			endDate, _ = time.Parse("2006-01-02", dates[1])
-			filterItem.CreatedDateStart = startDate
-			filterItem.CreatedDateEnd = endDate
-		}
-	}
-
-	// Save or update the FilterItem in the database
-	if filterItem.ID == 0 {
-		// Create a new record
-		if _, err := models.CreateFilterItem(db, filterItem); err != nil {
-			log.Printf("Error creating filter item for user %d: %v", userID, err)
-		}
-	} else {
-		// Update the existing record
-		if err := db.Save(&filterItem).Error; err != nil {
-			log.Printf("Error updating filter item for user %d: %v", userID, err)
-		}
-	}
-}
-
-func promptUserForInput(chatID int64, prompt string) {
-	sendMessage(int(chatID), prompt)
-}
-
 // ////////////////////////////////
 type PopularsCommand struct{}
 
 func (cmd *PopularsCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered populars"
+	msg := "    All Popular Advertisements:\n\n"
+	ads, err := postRepository.GetMostVisitedPost()
+	if err != nil {
+		msg = "Error fetching posts: "
+		log.Fatal(msg + err.Error())
+	} else {
+		if len(ads) == 0 {
+			msg = "Nothing found"
+		} else {
+			for _, a := range ads {
+				msg += fmt.Sprintf("%s  \n", a.Title) //, a.Post.WatchedNum)
+				msg += fmt.Sprint("-------------------------\n")
+			}
+		}
+	}
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+	return
 }
 func (cmd *PopularsCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.USER}
@@ -376,7 +241,7 @@ func (cmd *PremiumCommand) AllowedRoles() []models.Role {
 type GetPremiumIdCommand struct{}
 
 func (cmd *GetPremiumIdCommand) Execute(message *Message, user *models.User) {
-	msg := fmt.Sprintf("User with id :%s changed to Premium client.", message.Title)
+	msg := fmt.Sprintf("User with id :%s changed to Premium client.", message.Value[3:])
 	id, err := strconv.ParseInt(message.Value[3:], 10, 64)
 	if err != nil {
 		msg = "Invalid ID format. Please use 'Id=<number>'."
@@ -425,16 +290,19 @@ func (cmd *AdminCommand) AllowedRoles() []models.Role {
 type MonitorCommand struct{}
 
 func (cmd *MonitorCommand) Execute(message *Message, user *models.User) {
+
 	msg := "You entered Monitor\nCrawls\n\n"
 	/////////////
 	crawlHistories := postRepository.GetAllCrawlHistory()
 	for _, crawl := range crawlHistories {
 		msg += fmt.Sprintf("\nID: %v, CPU: %v, Memory: %v\n", crawl.ID, crawl.CpuUsage, crawl.MemoryUsage)
+
 	}
 	/////////////
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 	return
 }
+
 func (cmd *MonitorCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.SUPER_ADMIN}
 }
@@ -443,7 +311,21 @@ func (cmd *MonitorCommand) AllowedRoles() []models.Role {
 type AdvertisementsCommand struct{}
 
 func (cmd *AdvertisementsCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered Advertisements"
+	msg := "    Advertisements:\n\n"
+	ads, err := postRepository.GetAllPosts()
+	if err != nil {
+		msg = "Error fetching posts: "
+		log.Fatal(msg + err.Error())
+	} else {
+		if len(ads) == 0 {
+			msg = "Nothing found"
+		} else {
+			for _, a := range ads {
+				msg += fmt.Sprintf("%s  \n", a.Title) //, a.Post.WatchedNum)
+				msg += fmt.Sprint("-------------------------\n")
+			}
+		}
+	}
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 	return
 }
