@@ -5,7 +5,6 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/models"
 )
 
