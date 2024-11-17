@@ -83,6 +83,7 @@ func handleMessage(message *Message) {
 	} else if message.Title == "c" {
 		message.Title = "Get Admin Id"
 	}
+	saveUserFilterInput(user.ID, message.Title)
 	if cmd, exists := CommandRegistry[message.Title]; exists {
 		if isRoleAllowed(user.Role, cmd.AllowedRoles()) {
 			cmd.Execute(message, &user)

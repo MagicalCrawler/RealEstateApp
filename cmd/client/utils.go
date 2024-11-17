@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
 	"github.com/MagicalCrawler/RealEstateApp/models"
 )
 
@@ -22,6 +20,8 @@ const (
 )
 
 var userLastFilterMap = make(map[uint]uint) // Stores the last filter selected by each user (UserID -> FilterID)
+// Temporary in-memory storage for user filter items
+var userFilterItems = make(map[uint]*models.FilterItem)
 
 func getOrCreateUserRunCommand(message *Message) models.User {
 	// Check if user already exists by Telegram ID
@@ -299,6 +299,10 @@ func createInlineKeyboardFromOptions(options []string) InlineKeyboardMarkup {
 	return InlineKeyboardMarkup{InlineKeyboard: buttons}
 }
 
+// Temporary storage for user filters
+var userFilters = make(map[uint64]map[string]string)
+
+// Function to handle callback queries (filter selection)
 func handleCallbackQuery(callbackQuery *CallbackQuery) {
 	userID := uint64(callbackQuery.From.ID)
 	_, err := userRepository.FindByTelegramID(userID)
@@ -310,6 +314,13 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 
 	selectedFilter := callbackQuery.Data
 	chatID := int64(callbackQuery.Message.Chat.ID)
+
+	// Initialize the user's filter map if it doesn't exist
+	if _, exists := userFilters[userID]; !exists {
+		userFilters[userID] = make(map[string]string)
+	}
+
+	// Prompt user for input based on the selected filter
 	switch selectedFilter {
 	case "Price Range":
 		promptUserForInput(chatID, "Enter price range (e.g., 100000-200000):")
@@ -336,34 +347,26 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 	case "Advertisement Creation Date Range":
 		promptUserForInput(chatID, "Enter advertisement creation date range (e.g., YYYY-MM-DD to YYYY-MM-DD):")
 	default:
-		sendMessage(callbackQuery.Message.Chat.ID, "Invalid filter selection.")
-	}
-
-	if err != nil {
-		log.Printf("Error fetching user: %v", err)
+		sendMessage(int(chatID), "Invalid filter selection.")
 		return
 	}
 
-	// Display confirmation menu
-	sendFilterConfirmationMenu(chatID, selectedFilter)
+	// Temporarily save the selected filter type
+	userFilters[userID]["lastFilter"] = selectedFilter
+	log.Printf("Saved temporary filter for user %d: %s", userID, selectedFilter)
 }
 
-func saveUserFilterInput(db *gorm.DB, userID uint, filterType, value string) {
-	var filterItem models.FilterItem
-
-	// Find existing FilterItem for the user (if any)
-	if err := db.Where("user_id = ?", userID).First(&filterItem).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// Initialize a new FilterItem if none exists
-			filterItem = models.FilterItem{}
-		} else {
-			log.Printf("Error retrieving filter item for user %d: %v", userID, err)
-			return
-		}
+// Function to save user filter input in memory
+func saveUserFilterInput(userID uint, value string) {
+	// Get or initialize the user's FilterItem
+	filterItem, exists := userFilterItems[userID]
+	if !exists {
+		filterItem = &models.FilterItem{}
+		userFilterItems[userID] = filterItem
 	}
 
 	// Update the relevant field based on filterType
-	switch filterType {
+	switch userFilters[uint64(userID)]["lastFilter"] {
 	case "Price Range":
 		// Assuming the format is "min-max"
 		var priceMin, priceMax float64
@@ -423,19 +426,8 @@ func saveUserFilterInput(db *gorm.DB, userID uint, filterType, value string) {
 		}
 	}
 
-	// Save or update the FilterItem in the database
-	filterItem.UserID = userID
-	if filterItem.ID == 0 {
-		// Create a new record
-		if _, err := filterRepository.Create(filterItem); err != nil {
-			log.Printf("Error creating filter item for user %d: %v", userID, err)
-		}
-	} else {
-		// Update the existing record
-		if _, err := filterRepository.Update(filterItem.ID, filterItem); err != nil {
-			log.Printf("Error updating filter item for user %d: %v", userID, err)
-		}
-	}
+	// Log the updated filter item
+	log.Printf("Updated filter item for user %d: %+v", userID, filterItem)
 }
 
 func promptUserForInput(chatID int64, prompt string) {
@@ -466,26 +458,28 @@ func showFilterMenu(chatID int64, userId uint) {
 	// Fetch filters from the database
 	filters, _ := filterRepository.FindByUserID(userId)
 
-	// Create inline keyboard buttons for each filter
-	var filterButtons [][]InlineKeyboardButton
+	// Create keyboard buttons for each filter
+	var filterButtons [][]KeyboardButton
 	for _, filter := range filters {
-		filterButtons = append(filterButtons, []InlineKeyboardButton{
-			{Text: strconv.Itoa(int(filter.ID)), Data: fmt.Sprintf("select_filter_%s", filter.ID)},
+		filterButtons = append(filterButtons, []KeyboardButton{
+			{Text: strconv.Itoa(int(filter.ID))},
 		})
 	}
 
 	// Add the "Create New Filter" button
-	filterButtons = append(filterButtons, []InlineKeyboardButton{
-		{Text: "Create New Filter", Data: "CreateFilter"},
+	filterButtons = append(filterButtons, []KeyboardButton{
+		{Text: "Create New Filter"},
 	})
 
 	// Define the keyboard layout
-	keyboard := InlineKeyboardMarkup{
-		InlineKeyboard: filterButtons,
+	keyboard := ReplyKeyboardMarkupWithLocation{
+		Keyboard:        filterButtons,
+		ResizeKeyboard:  true,
+		OneTimeKeyboard: true,
 	}
 
 	// Send the menu
-	sendMessageWithInlineKeyboard(int(chatID), "Select a filter or create a new one:", keyboard)
+	sendMessageWithKeyboard(int(chatID), "Select a filter or create a new one:", keyboard)
 }
 
 func showFilterOptions(chatID int) {

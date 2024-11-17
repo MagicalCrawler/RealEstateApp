@@ -20,9 +20,9 @@ func initializeCommands() {
 
 		"Setting":             &SettingCommand{},
 		"Filter":              &FilterCommand{},
-		"CreateFilter":        &CreateFilterCommand{},
+		"Create New Filter":   &CreateFilterCommand{},
 		"Location Attachment": &GetLocationAttachmentCommand{},
-
+		"confirm_filter":      &ConfirmFilterCommand{},
 		//admin commands
 		"Premium":           &PremiumCommand{},
 		"Errors":            &ErrorsCommand{},
@@ -58,6 +58,20 @@ func (cmd *StartCommand) Execute(message *Message, user *models.User) {
 
 func (cmd *StartCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+}
+
+
+////// confirm filter
+
+type ConfirmFilterCommand struct{}
+func (cmd *ConfirmFilterCommand) Execute(message *Message, user *models.User) {
+
+	msg := fmt.Sprintf("filter confirmed")
+	sendMessage(message.Chat.ID, msg)
+	return
+}
+func (cmd *ConfirmFilterCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER}
 }
 
 //////////////////////////////////////
