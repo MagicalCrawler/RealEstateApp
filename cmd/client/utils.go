@@ -526,3 +526,7 @@ func createFilter(userId uint) {
 
 	handleFilterSelection(userId, createdFilterItem.ID)
 }
+
+func cancelFilter(userId uint) {
+	userFilterItems[userId] = nil
+}
