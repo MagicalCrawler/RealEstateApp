@@ -17,6 +17,7 @@ type Command interface {
 }
 
 var (
+
 	CommandRegistry  map[string]Command
 	userRepository   db.UserRepository
 	postRepository   db.PostRepo
@@ -27,6 +28,7 @@ var (
 func Run(userRepo db.UserRepository, postRepo db.PostRepo) {
 	postRepository = postRepo
 	userRepository = userRepo
+
 	apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 	initializeCommands()
 

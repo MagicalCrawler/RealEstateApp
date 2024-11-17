@@ -17,9 +17,13 @@ type PostRepo interface {
 	PostSaving(uniCode string, src types.WebsiteSource) (models.Post, error)
 	PostHistorySaving(postHistory models.PostHistory, post models.Post, crawlHistory models.CrawlHistory) (models.PostHistory, error)
 	CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error)
+
+	GetAllCrawlHistory() []models.CrawlHistory
+
 	CrawlHistoryIsExist(crawlHistory models.CrawlHistory) bool
 	GetMostVisitedPost() ([]models.PostHistory, error)
 	GetAllPosts() ([]models.PostHistory, error)
+
 }
 
 type PostRepository struct {
@@ -159,7 +163,6 @@ func (daba PostRepository) PostHistorySaving(postHistory models.PostHistory, pos
 
 func (dba PostRepository) CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error) {
 	myCrawlHistory := models.CrawlHistory{
-		ID:          crawlHistory.ID,
 		PostNum:     crawlHistory.PostNum,
 		CpuUsage:    crawlHistory.CpuUsage,
 		MemoryUsage: crawlHistory.MemoryUsage,
@@ -170,4 +173,10 @@ func (dba PostRepository) CrawlHistorySaving(crawlHistory models.CrawlHistory) (
 
 	err := dba.dbConnection.Create(&myCrawlHistory).Error
 	return myCrawlHistory, err
+}
+
+func (pr PostRepository) GetAllCrawlHistory() []models.CrawlHistory {
+	var crawlHistories []models.CrawlHistory
+	pr.dbConnection.Find(&crawlHistories)
+	return crawlHistories
 }

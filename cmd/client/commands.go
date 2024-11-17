@@ -290,14 +290,13 @@ func (cmd *AdminCommand) AllowedRoles() []models.Role {
 type MonitorCommand struct{}
 
 func (cmd *MonitorCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered Monitor\nCrawls"
+
+	msg := "You entered Monitor\nCrawls\n\n"
 	/////////////
-	cdb := db.NewConnection()
-	allCrawls := cdb.Find(&models.CrawlHistory{}) // tx *gorm.DB
-	var crawlHistories []models.CrawlHistory
-	allCrawls.Scan(&crawlHistories) //
-	for _, ch := range crawlHistories {
-		msg += fmt.Sprintf("\nID: %d, URL: %v, Status: %v", ch.ID, ch.CpuUsage, ch.MemoryUsage)
+	crawlHistories := postRepository.GetAllCrawlHistory()
+	for _, crawl := range crawlHistories {
+		msg += fmt.Sprintf("\nID: %v, CPU: %v, Memory: %v\n", crawl.ID, crawl.CpuUsage, crawl.MemoryUsage)
+
 	}
 	/////////////
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
