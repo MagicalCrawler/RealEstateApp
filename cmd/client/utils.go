@@ -515,3 +515,14 @@ func handleFilterSelection(userID uint, filterID uint) {
 
 	userRepository.UpdateUser(userID, updatedFields)
 }
+
+func createFilter(userId uint) {
+	// Save the FilterItem
+	createdFilterItem, err := filterRepository.Create(*userFilterItems[userId])
+	if err != nil {
+		fmt.Println("Error saving filter item:", err)
+		return
+	}
+
+	handleFilterSelection(userId, createdFilterItem.ID)
+}

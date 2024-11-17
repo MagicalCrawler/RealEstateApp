@@ -67,9 +67,11 @@ type ConfirmFilterCommand struct{}
 func (cmd *ConfirmFilterCommand) Execute(message *Message, user *models.User) {
 
 	msg := fmt.Sprintf("filter confirmed")
+	createFilter(user.ID)
 	sendMessage(message.Chat.ID, msg)
 	return
 }
+
 func (cmd *ConfirmFilterCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.USER}
 }
