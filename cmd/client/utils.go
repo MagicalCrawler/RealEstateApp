@@ -610,3 +610,20 @@ func sendFile(chatID int64, content []byte, fileType string) ([]byte, error) {
 	}
 	return cnt, nil
 }
+
+func searchLastFilter(userID int) {
+	lastFilterItem, err := userRepository.GetLastFilterItem(uint(userID))
+	if err != nil {
+		log.Printf("Error retrieving last filter item: %v", err)
+		return
+	}
+	if lastFilterItem == nil {
+		log.Printf("Please add some filter :)")
+		return
+	}
+
+	posts, err := filterRepository.SearchPostHistory(*lastFilterItem)
+
+	log.Printf("Please add some filter :)", posts)
+
+}
