@@ -19,9 +19,10 @@ const (
 
 type User struct {
 	gorm.Model
-	ID         uint   `gorm:"autoIncrement"`
-	TelegramID uint64 `gorm:"uniqueIndex"`
-	Role       Role
-	Type       UserType
-	FilterItems     []FilterItem `gorm:"foreignKey:UserID"` // Reverse relationship: a user has many filter items
+	ID               uint   `gorm:"autoIncrement"`
+	TelegramID       uint64 `gorm:"uniqueIndex"`
+	Role             Role
+	Type             UserType
+	FilterItems      []FilterItem `gorm:"foreignKey:UserID"` // Reverse relationship: a user has many filter items
+	LastFilterItemID *uint        // Nullable field to store the last selected filter ID
 }

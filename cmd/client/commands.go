@@ -12,19 +12,25 @@ func initializeCommands() {
 	CommandRegistry = map[string]Command{
 		"/start": &StartCommand{},
 		//user commands
-		"Help":                    &HelpCommand{},
-		"Send Location":           &SendLocationCommand{},
-		"Search":                  &SearchCommand{},
-		"Populars":                &PopularsCommand{},
-		"Get Redius":              &GetRediusCommand{},
+		"Help":          &HelpCommand{},
+		"Send Location": &SendLocationCommand{},
+		"Search":        &SearchCommand{},
+		"Populars":      &PopularsCommand{},
+		"Get Redius":    &GetRediusCommand{},
+
+		"Setting":             &SettingCommand{},
+		"Filter":              &FilterCommand{},
+		"Create New Filter":   &CreateFilterCommand{},
+		"Location Attachment": &GetLocationAttachmentCommand{},
+		"confirm_filter":      &ConfirmFilterCommand{},
+		"cancel_filter":         &CancelFilterCommand{},
+
 		"Select Resource Website": &GetResourceWebsite{},
-		"Setting":                 &SettingCommand{},
-		"Filter":                  &FilterCommand{},
 		"Bookmark":                &BookmarkCommand{},
-		"Location Attachment":     &GetLocationAttachmentCommand{},
 		"Get Website":             &GetWebsiteCommand{},
 		"Get Bookmark Id":         &GetBookmarkIDCommand{},
 		"Export CSV":              &ExportCSVCommand{},
+
 		//admin commands
 		"Premium":           &PremiumCommand{},
 		"Errors":            &ErrorsCommand{},
@@ -39,6 +45,16 @@ func initializeCommands() {
 		"Advertisements":  &AdvertisementsCommand{},
 		"Crawler Setting": &CrawlerSettingCommand{},
 	}
+}
+
+// //////////////////////////////////
+type CreateFilterCommand struct{}
+
+func (cmd *CreateFilterCommand) Execute(message *Message, user *models.User) {
+	showFilterOptions(message.Chat.ID)
+}
+func (cmd *CreateFilterCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
 }
 
 // /////////////////////////////////// User Commands
@@ -89,6 +105,39 @@ func (cmd *StartCommand) Execute(message *Message, user *models.User) {
 
 func (cmd *StartCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+}
+
+////// confirm filter
+
+type ConfirmFilterCommand struct{}
+
+func (cmd *ConfirmFilterCommand) Execute(message *Message, user *models.User) {
+
+	msg := fmt.Sprintf("filter confirmed")
+	createFilter(user.ID)
+	sendMessage(message.Chat.ID, msg)
+	return
+}
+
+func (cmd *ConfirmFilterCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER}
+}
+
+// ////// cancel filter
+type CancelFilterCommand struct{}
+
+func (cmd *CancelFilterCommand) Execute(message *Message, user *models.User) {
+	// Here, we would typically remove the user's filter or mark it as canceled
+	cancelFilter(user.ID)
+	sendMessageWithKeyboard(message.Chat.ID, getWelcomeMessage(message.From.FirstName, user.Role), getKeyboard(user.Role))
+
+	msg := fmt.Sprintf("Your filter has been canceled")
+	sendMessage(message.Chat.ID, msg)
+	return
+}
+
+func (cmd *CancelFilterCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER}
 }
 
 //////////////////////////////////////
@@ -227,23 +276,24 @@ func (cmd *SearchCommand) AllowedRoles() []models.Role {
 type FilterCommand struct{}
 
 func (cmd *FilterCommand) Execute(message *Message, user *models.User) {
-	filterOptions := []string{
-		"Price Range",
-		"City",
-		"Neighborhood",
-		"Area Range",
-		"Bedroom Count Range",
-		"Category (Rent/Buy/Mortgage)",
-		"Building Age Range",
-		"Property Type (Apartment/Villa)",
-		"Floor Range",
-		"Storage Availability",
-		"Elevator Availability",
-		"Advertisement Creation Date Range",
-	}
+	// filterOptions := []string{
+	// 	"Price Range",
+	// 	"City",
+	// 	"Neighborhood",
+	// 	"Area Range",
+	// 	"Bedroom Count Range",
+	// 	"Category (Rent/Buy/Mortgage)",
+	// 	"Building Age Range",
+	// 	"Property Type (Apartment/Villa)",
+	// 	"Floor Range",
+	// 	"Storage Availability",
+	// 	"Elevator Availability",
+	// 	"Advertisement Creation Date Range",
+	// }
 
-	msg := "Select a filter to apply:"
-	sendMessageWithInlineKeyboard(message.Chat.ID, msg, createInlineKeyboardFromOptions(filterOptions))
+	// msg := "Select a filter to apply:"
+	showFilterMenu(message.Chat.ID, user.ID)
+	// sendMessageWithInlineKeyboard(message.Chat.ID, msg, createInlineKeyboardFromOptions(filterOptions))
 }
 
 func (cmd *FilterCommand) AllowedRoles() []models.Role {

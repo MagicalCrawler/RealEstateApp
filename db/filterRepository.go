@@ -1,6 +1,8 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	"gorm.io/gorm"
 )
@@ -12,6 +14,7 @@ type FilterItemRepository interface {
 	Update(id uint, updatedData models.FilterItem) (models.FilterItem, error)
 	Delete(id uint) error
 	SearchPostHistory(filter models.FilterItem) ([]models.PostHistory, error)
+	FindByUserID(userID uint) ([]models.FilterItem, error)
 }
 
 type FilterItemRepositoryImpl struct {
@@ -19,9 +22,8 @@ type FilterItemRepositoryImpl struct {
 }
 
 func NewFilterItemRepository(dbConnection *gorm.DB) FilterItemRepository {
-	return &FilterItemRepositoryImpl{dbConnection: dbConnection}
+	return FilterItemRepositoryImpl{dbConnection: dbConnection}
 }
-
 
 func (repo FilterItemRepositoryImpl) Create(filterItem models.FilterItem) (models.FilterItem, error) {
 	err := repo.dbConnection.Create(&filterItem).Error
@@ -120,4 +122,23 @@ func (repo FilterItemRepositoryImpl) SearchPostHistory(filter models.FilterItem)
 
 	err := query.Find(&posts).Error
 	return posts, err
+}
+
+// FindByUserID retrieves all filters associated with a specific user
+func (repo FilterItemRepositoryImpl) FindByUserID(userID uint) ([]models.FilterItem, error) {
+	if repo.dbConnection == nil {
+		return nil, fmt.Errorf("database connection is nil for user %d", userID)
+	}
+
+	var filterItems []models.FilterItem
+	err := repo.dbConnection.Where("user_id = ?", userID).Find(&filterItems).Error
+	if err != nil {
+		return nil, err // Database query failed
+	}
+
+	if len(filterItems) == 0 {
+		return nil, gorm.ErrRecordNotFound // Explicitly signal no records found
+	}
+
+	return filterItems, nil
 }

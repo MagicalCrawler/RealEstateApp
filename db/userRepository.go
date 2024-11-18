@@ -19,6 +19,7 @@ type UserRepository interface {
 	Delete(ID uint) error
 	UpdateUserType(ID uint, Type models.UserType) (models.User, error)
 	UpdateUserRole(ID uint, Role models.Role) (models.User, error)
+	UpdateUser(ID uint, updatedData map[string]interface{}) (models.User, error)
 }
 
 type UserRepositoryImpl struct {
@@ -110,11 +111,33 @@ func (ur UserRepositoryImpl) UpdateUserType(ID uint, Type models.UserType) (mode
 	}
 	return user, nil
 }
+
 func (ur UserRepositoryImpl) UpdateUserRole(ID uint, Role models.Role) (models.User, error) {
 	var user models.User
 	result := ur.dbConnection.Model(&user).Where("id = ?", ID).Where("role = ?", models.USER).Update("role", Role)
 	if result.Error != nil {
 		return user, result.Error
 	}
+	return user, nil
+}
+
+func (ur UserRepositoryImpl) UpdateUser(ID uint, updatedData map[string]interface{}) (models.User, error) {
+	var user models.User
+
+	// Find the user to update
+	if err := ur.dbConnection.First(&user, ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.User{}, errors.New("user not found")
+		}
+		ur.logger.Error("Find User Failed", slog.Any("error", err))
+		return models.User{}, err
+	}
+
+	// Update the fields specified in updatedData
+	if err := ur.dbConnection.Model(&user).Updates(updatedData).Error; err != nil {
+		ur.logger.Error("Update User Failed", slog.Any("error", err))
+		return models.User{}, err
+	}
+
 	return user, nil
 }

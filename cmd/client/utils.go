@@ -15,14 +15,16 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/gorm"
-
 	"github.com/MagicalCrawler/RealEstateApp/models"
 )
 
 const (
 	timeout = 10
 )
+
+var userLastFilterMap = make(map[uint]uint) // Stores the last filter selected by each user (UserID -> FilterID)
+// Temporary in-memory storage for user filter items
+var userFilterItems = make(map[uint]*models.FilterItem)
 
 func getOrCreateUserRunCommand(message *Message) models.User {
 	// Check if user already exists by Telegram ID
@@ -305,6 +307,10 @@ func createInlineKeyboardFromOptions(options []string) InlineKeyboardMarkup {
 	return InlineKeyboardMarkup{InlineKeyboard: buttons}
 }
 
+// Temporary storage for user filters
+var userFilters = make(map[uint64]map[string]string)
+
+// Function to handle callback queries (filter selection)
 func handleCallbackQuery(callbackQuery *CallbackQuery) {
 	userID := uint64(callbackQuery.From.ID)
 	_, err := userRepository.FindByTelegramID(userID)
@@ -316,6 +322,13 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 
 	selectedFilter := callbackQuery.Data
 	chatID := int64(callbackQuery.Message.Chat.ID)
+
+	// Initialize the user's filter map if it doesn't exist
+	if _, exists := userFilters[userID]; !exists {
+		userFilters[userID] = make(map[string]string)
+	}
+
+	// Prompt user for input based on the selected filter
 	switch selectedFilter {
 	case "Price Range":
 		promptUserForInput(chatID, "Enter price range (e.g., 100000-200000):")
@@ -342,26 +355,26 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 	case "Advertisement Creation Date Range":
 		promptUserForInput(chatID, "Enter advertisement creation date range (e.g., YYYY-MM-DD to YYYY-MM-DD):")
 	default:
-		sendMessage(callbackQuery.Message.Chat.ID, "Invalid filter selection.")
+		sendMessage(int(chatID), "Invalid filter selection.")
+		return
 	}
+
+	// Temporarily save the selected filter type
+	userFilters[userID]["lastFilter"] = selectedFilter
+	log.Printf("Saved temporary filter for user %d: %s", userID, selectedFilter)
 }
 
-func saveUserFilterInput(db *gorm.DB, userID uint, filterType, value string) {
-	var filterItem models.FilterItem
-
-	// Find existing FilterItem for the user (if any)
-	if err := db.Where("user_id = ?", userID).First(&filterItem).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// Initialize a new FilterItem if none exists
-			filterItem = models.FilterItem{}
-		} else {
-			log.Printf("Error retrieving filter item for user %d: %v", userID, err)
-			return
-		}
+// Function to save user filter input in memory
+func saveUserFilterInput(chatId int, userID uint, value string) {
+	// Get or initialize the user's FilterItem
+	filterItem, exists := userFilterItems[userID]
+	if !exists {
+		filterItem = &models.FilterItem{}
+		userFilterItems[userID] = filterItem
 	}
 
 	// Update the relevant field based on filterType
-	switch filterType {
+	switch userFilters[uint64(userID)]["lastFilter"] {
 	case "Price Range":
 		// Assuming the format is "min-max"
 		var priceMin, priceMax float64
@@ -421,19 +434,114 @@ func saveUserFilterInput(db *gorm.DB, userID uint, filterType, value string) {
 		}
 	}
 
-	// Save or update the FilterItem in the database
-	filterItem.UserID = userID
-	if filterItem.ID == 0 {
-		// Create a new record
-		if _, err := filterRepository.Create(filterItem); err != nil {
-			log.Printf("Error creating filter item for user %d: %v", userID, err)
-		}
+	sendFilterConfirmationMenu(int64(chatId), strconv.Itoa(int(userFilterItems[userID].ID)))
+	// Log the updated filter item
+	log.Printf("Updated filter item for user %d: %+v", userID, filterItem)
+}
+
+func promptUserForInput(chatID int64, prompt string) {
+	sendMessage(int(chatID), prompt)
+}
+
+func sendFilterConfirmationMenu(chatID int64, filter string) {
+	keyboard := InlineKeyboardMarkup{
+		InlineKeyboard: [][]InlineKeyboardButton{
+			{
+				{
+					Text: "Confirm",
+					Data: "confirm_filter",
+				},
+				{
+					Text: "Cancel",
+					Data: "cancel_filter",
+				},
+			},
+		},
+	}
+
+	text := fmt.Sprintf("You selected the filter: *%s*.\nDo you want to confirm or cancel?", filter)
+	sendMessageWithInlineKeyboard(int(chatID), text, keyboard)
+}
+
+func showFilterMenu(chatID int, userId uint) {
+	// Fetch filters from the database
+	filters, _ := filterRepository.FindByUserID(userId)
+	// Create keyboard buttons for each filter
+	var filterButtons [][]KeyboardButton
+
+	// Add the "Create New Filter" button
+	filterButtons = append(filterButtons, []KeyboardButton{
+		{Text: "Create New Filter"},
+	})
+
+	// Proceed safely with filterItems
+	if len(filters) == 0 {
+		log.Printf("No filters returned for user %d", userId)
 	} else {
-		// Update the existing record
-		if _, err := filterRepository.Update(filterItem.ID, filterItem); err != nil {
-			log.Printf("Error updating filter item for user %d: %v", userID, err)
+		for _, filter := range filters {
+			filterButtons = append(filterButtons, []KeyboardButton{
+				{Text: strconv.Itoa(int(filter.ID))},
+			})
 		}
 	}
+
+	// Define the keyboard layout
+	keyboard := ReplyKeyboardMarkupWithLocation{
+		Keyboard:        filterButtons,
+		ResizeKeyboard:  true,
+		OneTimeKeyboard: true,
+	}
+
+	// Send the menu
+	sendMessageWithKeyboard(int(chatID), "Select a filter or create a new one:", keyboard)
+}
+
+func showFilterOptions(chatID int) {
+	filterOptions := []string{
+		"Price Range",
+		"City",
+		"Neighborhood",
+		"Area Range",
+		"Bedroom Count Range",
+		"Category (Rent/Buy/Mortgage)",
+		"Building Age Range",
+		"Property Type (Apartment/Villa)",
+		"Floor Range",
+		"Storage Availability",
+		"Elevator Availability",
+		"Advertisement Creation Date Range",
+	}
+
+	msg := "Select a filter to apply:"
+	sendMessageWithInlineKeyboard(
+		int(chatID),
+		msg,
+		createInlineKeyboardFromOptions(filterOptions),
+	)
+}
+
+func handleFilterSelection(userID uint, filterID uint) {
+
+	updatedFields := map[string]interface{}{
+		"LastFilterItemID": filterID,
+	}
+
+	userRepository.UpdateUser(userID, updatedFields)
+}
+
+func createFilter(userId uint) {
+	// Save the FilterItem
+	createdFilterItem, err := filterRepository.Create(*userFilterItems[userId])
+	if err != nil {
+		fmt.Println("Error saving filter item:", err)
+		return
+	}
+
+	handleFilterSelection(userId, createdFilterItem.ID)
+}
+
+func cancelFilter(userId uint) {
+	userFilterItems[userId] = nil
 }
 
 func promptUserForInput(chatID int64, prompt string) {
