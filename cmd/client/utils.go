@@ -341,6 +341,22 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 		sendMessage(postID, "post id")
 		return
 	}
+
+	if strings.HasPrefix(callbackQuery.Data, "filter_") {
+		// Extract the filter ID
+		filterIDStr := strings.TrimPrefix(callbackQuery.Data, "filter_")
+		filterID, err := strconv.Atoi(filterIDStr)
+		if err != nil {
+			sendMessage(int(chatID), "Invalid filter selection.")
+			return
+		}
+
+		// Use the filterID as needed
+		sendMessageWithKeyboard(int(chatID), fmt.Sprintf("Selected filter ID: %d", filterID), getKeyboard(user.Role))
+
+		handleFilterSelection(user.ID, uint(filterID))
+		return
+	}
 	// Prompt user for input based on the selected filter
 	switch selectedFilter {
 	case "Price Range":
@@ -503,7 +519,7 @@ func showFilterMenu(chatID int, userId uint) {
 	} else {
 		for _, filter := range filters {
 			filterButtons = append(filterButtons, []KeyboardButton{
-				{Text: strconv.Itoa(int(filter.ID))},
+				{Text: "filter_" + strconv.Itoa(int(filter.ID))},
 			})
 		}
 	}
@@ -671,7 +687,7 @@ func createInlineKeyboardFromPosts(posts []models.PostHistory) InlineKeyboardMar
 			{
 				Text: text,
 				// Text: fmt.Sprintf("%s - %d", post.Title, post.Price), // Display title and price
-				Data: fmt.Sprintf("post_%d", post.ID),               // Unique callback data
+				Data: fmt.Sprintf("post_%d", post.ID), // Unique callback data
 			},
 		}
 		buttons = append(buttons, row)
