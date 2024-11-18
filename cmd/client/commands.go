@@ -264,7 +264,7 @@ type SearchCommand struct{}
 
 func (cmd *SearchCommand) Execute(message *Message, user *models.User) {
 	msg := fmt.Sprintf("wait please :)")
-	
+	searchLastFilter(int(user.ID))
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *SearchCommand) AllowedRoles() []models.Role {
