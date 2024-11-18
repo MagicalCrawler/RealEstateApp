@@ -154,12 +154,13 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 					{Text: "Bookmark"},
 				},
 				{
-					{Text: "Setting"},
-					{Text: "Populars"},
+					// {Text: "Help"},
+					{Text: "Send Location"},
+					{Text: "Export CSV"},
 				},
 				{
-					{Text: "Send Location"},
-					{Text: "Help"},
+					{Text: "Setting"},
+					{Text: "Populars"},
 				},
 				{
 					{Text: "Select Resource Website"},
@@ -456,7 +457,7 @@ func sendFile(chatID int64, content []byte, fileType string) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	part, err := writer.CreateFormFile("document", "result" + fileType)
+	part, err := writer.CreateFormFile("document", "result"+fileType)
 	if err != nil {
 		return []byte{}, err
 	}

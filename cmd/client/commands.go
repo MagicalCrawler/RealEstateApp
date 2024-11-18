@@ -24,6 +24,7 @@ func initializeCommands() {
 		"Location Attachment":     &GetLocationAttachmentCommand{},
 		"Get Website":             &GetWebsiteCommand{},
 		"Get Bookmark Id":         &GetBookmarkIDCommand{},
+		"Export CSV":              &ExportCSVCommand{},
 		//admin commands
 		"Premium":           &PremiumCommand{},
 		"Errors":            &ErrorsCommand{},
@@ -54,6 +55,19 @@ func (cmd *GetResourceWebsite) AllowedRoles() []models.Role {
 }
 
 // /////////////////////////////////// User Commands
+type ExportCSVCommand struct{}
+
+func (cmd *ExportCSVCommand) Execute(message *Message, user *models.User) {
+
+	msg := "you enter csv"
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+
+func (cmd *ExportCSVCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+}
+
+// ///////////////////////////////////
 type GetWebsiteCommand struct{}
 
 func (cmd *GetWebsiteCommand) Execute(message *Message, user *models.User) {
