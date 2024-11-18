@@ -80,6 +80,7 @@ func postsSeeds(datab *gorm.DB) {
 	}
 	post1 := models.Post{
 		UniqueCode: "wZ0kfXs_",
+		Website:    types.Divar,
 	}
 
 	if err := postRepository.PostIsExist(post1); err == false {
@@ -118,6 +119,7 @@ func postsSeeds(datab *gorm.DB) {
 
 	post2 := models.Post{
 		UniqueCode: "wZ0o_N3w",
+		Website:    types.Divar,
 	}
 	if err := postRepository.PostIsExist(post2); err == false {
 		datab.Create(&post2)
@@ -151,7 +153,7 @@ func postsSeeds(datab *gorm.DB) {
 		datab.Create(&postHistory2)
 	}
 
-	post3 := models.Post{UniqueCode: "wZ0YoPIi"}
+	post3 := models.Post{UniqueCode: "wZ0YoPIi", Website: types.Divar}
 	if err := postRepository.PostIsExist(post3); err == false {
 		datab.Create(&post3)
 	} else {
@@ -185,7 +187,7 @@ func postsSeeds(datab *gorm.DB) {
 		log.Printf("PostHistory already exists")
 	}
 
-	post4 := models.Post{UniqueCode: "wZQUyrBv"}
+	post4 := models.Post{UniqueCode: "wZQUyrBv", Website: types.Divar}
 	if err := postRepository.PostIsExist(post4); err == false {
 		datab.Create(&post4)
 	} else {
@@ -219,7 +221,7 @@ func postsSeeds(datab *gorm.DB) {
 		log.Printf("PostHistory already exists")
 	}
 
-	post5 := models.Post{UniqueCode: "wZ0ATY3W"}
+	post5 := models.Post{UniqueCode: "wZ0ATY3W", Website: types.Divar}
 	if err := postRepository.PostIsExist(post5); err == false {
 		datab.Create(&post5)
 	} else {
@@ -253,7 +255,7 @@ func postsSeeds(datab *gorm.DB) {
 		log.Printf("PostHistory already exists")
 	}
 
-	post6 := models.Post{UniqueCode: "wZyQVpfx"}
+	post6 := models.Post{UniqueCode: "wZyQVpfx", Website: types.Divar}
 	if err := postRepository.PostIsExist(post6); err == false {
 		datab.Create(&post6)
 	} else {
