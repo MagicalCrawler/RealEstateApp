@@ -339,6 +339,7 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 		}
 
 		sendMessage(postID, "post id")
+		return
 	}
 	// Prompt user for input based on the selected filter
 	switch selectedFilter {
