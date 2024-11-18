@@ -329,6 +329,17 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 		userFilters[uint64(user.ID)] = make(map[string]string)
 	}
 
+	if strings.HasPrefix(callbackQuery.Data, "post_") {
+		// Extract the post ID
+		postIDStr := strings.TrimPrefix(callbackQuery.Data, "post_")
+		postID, err := strconv.Atoi(postIDStr)
+		if err != nil {
+			sendMessage(int(chatID), "Invalid post selection.")
+			return
+		}
+
+		sendMessage(postID, "post id")
+	}
 	// Prompt user for input based on the selected filter
 	switch selectedFilter {
 	case "Price Range":
@@ -650,10 +661,15 @@ func createInlineKeyboardFromPosts(posts []models.PostHistory) InlineKeyboardMar
 	buttons := make([][]InlineKeyboardButton, 0)
 
 	for _, post := range posts {
+		text := fmt.Sprintf(
+			"🏡 *%s*\n\nPrice: %d\nCity: %s\nNeighborhood: %s\nArea: %d m²\nBedrooms: %d\n\n[View Post](%s)",
+			post.Title, post.Price, post.City, post.Neighborhood, post.Area, post.BedroomNum, post.PostURL,
+		)
 		// Each row will have one button with the post's title or summary
 		row := []InlineKeyboardButton{
 			{
-				Text: fmt.Sprintf("%s - %d", post.Title, post.Price), // Display title and price
+				Text: text,
+				// Text: fmt.Sprintf("%s - %d", post.Title, post.Price), // Display title and price
 				Data: fmt.Sprintf("post_%d", post.ID),               // Unique callback data
 			},
 		}
