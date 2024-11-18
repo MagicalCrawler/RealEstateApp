@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/MagicalCrawler/RealEstateApp/models"
-	"gorm.io/gorm"
 )
 
 const (
@@ -358,7 +357,7 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 }
 
 // Function to save user filter input in memory
-func saveUserFilterInput(userID uint, value string) {
+func saveUserFilterInput(chatId int, userID uint, value string) {
 	// Get or initialize the user's FilterItem
 	filterItem, exists := userFilterItems[userID]
 	if !exists {
@@ -427,6 +426,7 @@ func saveUserFilterInput(userID uint, value string) {
 		}
 	}
 
+	sendFilterConfirmationMenu(int64(chatId), strconv.Itoa(int(userFilterItems[userID].ID)))
 	// Log the updated filter item
 	log.Printf("Updated filter item for user %d: %+v", userID, filterItem)
 }
@@ -455,18 +455,16 @@ func sendFilterConfirmationMenu(chatID int64, filter string) {
 	sendMessageWithInlineKeyboard(int(chatID), text, keyboard)
 }
 
-func showFilterMenu(chatID int64, userId uint) {
+func showFilterMenu(chatID int, userId uint) {
 	// Fetch filters from the database
-	filters, err := filterRepository.FindByUserID(userId)
+	filters, _ := filterRepository.FindByUserID(userId)
 	// Create keyboard buttons for each filter
 	var filterButtons [][]KeyboardButton
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			log.Printf("No filters found for user %d", userId)
-			return
-		}
-		log.Fatalf("Error retrieving filters for user %d: %v", userId, err)
-	}
+
+	// Add the "Create New Filter" button
+	filterButtons = append(filterButtons, []KeyboardButton{
+		{Text: "Create New Filter"},
+	})
 
 	// Proceed safely with filterItems
 	if len(filters) == 0 {
@@ -478,11 +476,6 @@ func showFilterMenu(chatID int64, userId uint) {
 			})
 		}
 	}
-
-	// Add the "Create New Filter" button
-	filterButtons = append(filterButtons, []KeyboardButton{
-		{Text: "Create New Filter"},
-	})
 
 	// Define the keyboard layout
 	keyboard := ReplyKeyboardMarkupWithLocation{

@@ -188,7 +188,7 @@ func (cmd *FilterCommand) Execute(message *Message, user *models.User) {
 	// }
 
 	// msg := "Select a filter to apply:"
-	showFilterMenu(int64(message.Chat.ID), user.ID)
+	showFilterMenu(message.Chat.ID, user.ID)
 	// sendMessageWithInlineKeyboard(message.Chat.ID, msg, createInlineKeyboardFromOptions(filterOptions))
 }
 

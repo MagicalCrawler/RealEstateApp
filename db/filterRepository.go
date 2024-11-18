@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	"gorm.io/gorm"
 )
@@ -21,7 +22,7 @@ type FilterItemRepositoryImpl struct {
 }
 
 func NewFilterItemRepository(dbConnection *gorm.DB) FilterItemRepository {
-	return &FilterItemRepositoryImpl{dbConnection: dbConnection}
+	return FilterItemRepositoryImpl{dbConnection: dbConnection}
 }
 
 func (repo FilterItemRepositoryImpl) Create(filterItem models.FilterItem) (models.FilterItem, error) {
@@ -126,7 +127,7 @@ func (repo FilterItemRepositoryImpl) SearchPostHistory(filter models.FilterItem)
 // FindByUserID retrieves all filters associated with a specific user
 func (repo FilterItemRepositoryImpl) FindByUserID(userID uint) ([]models.FilterItem, error) {
 	if repo.dbConnection == nil {
-		return nil, fmt.Errorf("database connection is nil")
+		return nil, fmt.Errorf("database connection is nil for user %d", userID)
 	}
 
 	var filterItems []models.FilterItem

@@ -26,6 +26,7 @@ var (
 
 func Run(dbConnection *gorm.DB) {
 	userRepository = db.CreateNewUserRepository(dbConnection)
+	filterRepository = db.NewFilterItemRepository(dbConnection)
 	apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 	initializeCommands()
 
@@ -83,14 +84,15 @@ func handleMessage(message *Message) {
 	} else if message.Title == "c" {
 		message.Title = "Get Admin Id"
 	}
-	saveUserFilterInput(user.ID, message.Title)
 	if cmd, exists := CommandRegistry[message.Title]; exists {
 		if isRoleAllowed(user.Role, cmd.AllowedRoles()) {
 			cmd.Execute(message, &user)
+			return
 		} else {
 			sendMessageWithKeyboard(message.Chat.ID, "You do not have permission to use this command.", getKeyboard(user.Role))
 		}
 	} else {
-		sendMessageWithKeyboard(message.Chat.ID, "I didn't understand that command.", getKeyboard(user.Role))
+		saveUserFilterInput(message.Chat.ID, user.ID, message.Title)
+		// sendMessageWithKeyboard(message.Chat.ID, "I didn't understand that command.", getKeyboard(user.Role))
 	}
 }
