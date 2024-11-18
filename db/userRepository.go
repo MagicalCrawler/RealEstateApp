@@ -20,6 +20,7 @@ type UserRepository interface {
 	UpdateUserType(ID uint, Type models.UserType) (models.User, error)
 	UpdateUserRole(ID uint, Role models.Role) (models.User, error)
 	UpdateUser(ID uint, updatedData map[string]interface{}) (models.User, error)
+	GetLastFilterItem(userID uint) (*models.FilterItem, error)
 }
 
 type UserRepositoryImpl struct {
@@ -140,4 +141,29 @@ func (ur UserRepositoryImpl) UpdateUser(ID uint, updatedData map[string]interfac
 	}
 
 	return user, nil
+}
+
+// Function to get the last filter item for a user
+func (repo UserRepositoryImpl) GetLastFilterItem(userID uint) (*models.FilterItem, error) {
+	var user models.User
+
+	// Fetch the user with their last filter item
+	err := repo.dbConnection.Preload("FilterItems").First(&user, userID).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the LastFilterItemID is set
+	if user.LastFilterItemID == nil {
+		return nil, errors.New("no last filter item set for user")
+	}
+
+	// Retrieve the last filter item
+	var lastFilterItem models.FilterItem
+	err = repo.dbConnection.First(&lastFilterItem, *user.LastFilterItemID).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &lastFilterItem, nil
 }

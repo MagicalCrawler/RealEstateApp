@@ -263,7 +263,8 @@ func (cmd *GetBookmarkIDCommand) AllowedRoles() []models.Role {
 type SearchCommand struct{}
 
 func (cmd *SearchCommand) Execute(message *Message, user *models.User) {
-	msg := fmt.Sprintf("You entered search ")
+	msg := fmt.Sprintf("wait please :)")
+	
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *SearchCommand) AllowedRoles() []models.Role {
