@@ -2,12 +2,10 @@ package db
 
 import (
 	"errors"
-	"log/slog"
-	"strings"
-
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	"github.com/MagicalCrawler/RealEstateApp/types"
 	"gorm.io/gorm"
+	"log/slog"
 )
 
 type PostRepo interface {
@@ -96,16 +94,6 @@ func (pr PostRepository) PostSaving(uniCode string, src types.WebsiteSource) (mo
 		return post, err
 	}
 	return post, errors.New("Post already exists")
-}
-
-func Separate(url string) (types.WebsiteSource, string) {
-	var webSite types.WebsiteSource
-	mySlice := strings.SplitN(url, "/", 6)
-	if mySlice[2] == "divar.ir" {
-		webSite = types.Divar
-	}
-	uniqueCode := mySlice[5]
-	return webSite, uniqueCode
 }
 
 func (pr PostRepository) PostHistoryIsExist(postHistory models.PostHistory) bool {
