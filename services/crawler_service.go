@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/MagicalCrawler/RealEstateApp/crawlers"
 	"github.com/MagicalCrawler/RealEstateApp/crawlers/divar"
+	"github.com/MagicalCrawler/RealEstateApp/crawlers/sheypoor"
 	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	crawlerModels "github.com/MagicalCrawler/RealEstateApp/models/crawler"
@@ -36,7 +37,7 @@ func NewCrawlerService(repository *db.PostRepo) *CrawlerService {
 	return &CrawlerService{
 		crawlers: []crawlers.Crawler{
 			divar.NewDivarCrawler(),
-			// Add other crawler implementations here
+			sheypoor.NewSheypoorCrawler(),
 		},
 		cityService: NewCityService(),
 		repository:  repository,
