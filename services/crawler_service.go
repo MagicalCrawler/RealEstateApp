@@ -294,7 +294,8 @@ func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) er
 
 	logger := utils.NewLogger("CrawlerService")
 
-	if _, err := repository.CrawlHistorySaving(crawlHistory); err != nil {
+	insertedCrawlHistory, err := repository.CrawlHistorySaving(crawlHistory)
+	if err != nil {
 		logger.Error("failed to save CrawlHistory: ", err)
 		return fmt.Errorf("failed to save CrawlHistory: %w", err)
 	}
@@ -307,7 +308,7 @@ func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) er
 			Website:    "Divar", // فرض بر اینکه این اطلاعات موجود است
 		}
 
-		_, err := repository.PostSaving(dbPost.UniqueCode, "divar.ir")
+		insertedPost, err := repository.PostSaving(dbPost.UniqueCode, "divar.ir")
 		if err != nil {
 			logger.Error("failed to save post: ", post.ID, "; error: ", err)
 			log.Printf("failed to save post %s: %v", post.ID, err)
@@ -315,7 +316,7 @@ func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) er
 		}
 
 		postHistory := models.PostHistory{
-			PostID:         dbPost.ID,
+			PostID:         insertedPost.ID,
 			Title:          post.Title,
 			PostURL:        post.Link,
 			Price:          parsePrice(post.TotalPrice),
@@ -332,7 +333,7 @@ func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) er
 			HasElevator:    containsFeature(post.Features, "آسانسور"),
 			ImageURL:       strings.Join(post.Images, ","),
 			Description:    post.Description,
-			CrawlHistoryID: crawlHistory.ID,
+			CrawlHistoryID: insertedCrawlHistory.ID,
 		}
 
 		// بررسی وجود RentalMetadata
@@ -344,9 +345,9 @@ func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) er
 			postHistory.CostPerPerson = post.RentalMetadata.ExtraPersonCost
 		}
 
-		_, err = repository.PostHistorySaving(postHistory, dbPost, crawlHistory)
+		_, err = repository.PostHistorySaving(postHistory, insertedPost, insertedCrawlHistory)
 		if err != nil {
-			logger.Error("failed to save PostHistory for post: ", post.ID, "; error: ", err)
+			logger.Error("failed to save PostHistory for post: ", dbPost.ID, "; error: ", err)
 			log.Printf("failed to save PostHistory for post %s: %v", post.ID, err)
 			continue
 		}

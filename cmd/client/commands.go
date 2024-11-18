@@ -24,6 +24,13 @@ func initializeCommands() {
 		"Location Attachment": &GetLocationAttachmentCommand{},
 		"confirm_filter":      &ConfirmFilterCommand{},
 		"cancel_filter":         &CancelFilterCommand{},
+
+		"Select Resource Website": &GetResourceWebsite{},
+		"Bookmark":                &BookmarkCommand{},
+		"Get Website":             &GetWebsiteCommand{},
+		"Get Bookmark Id":         &GetBookmarkIDCommand{},
+		"Export CSV":              &ExportCSVCommand{},
+
 		//admin commands
 		"Premium":           &PremiumCommand{},
 		"Errors":            &ErrorsCommand{},
@@ -51,6 +58,45 @@ func (cmd *CreateFilterCommand) AllowedRoles() []models.Role {
 }
 
 // /////////////////////////////////// User Commands
+type GetResourceWebsite struct{}
+
+func (cmd *GetResourceWebsite) Execute(message *Message, user *models.User) {
+
+	msg := "Enter \n      s : Sheypoor\n      d : Divar"
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+
+func (cmd *GetResourceWebsite) AllowedRoles() []models.Role {
+	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+}
+
+// /////////////////////////////////// User Commands
+type ExportCSVCommand struct{}
+
+func (cmd *ExportCSVCommand) Execute(message *Message, user *models.User) {
+
+	msg := "you enter csv"
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+
+func (cmd *ExportCSVCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+}
+
+// ///////////////////////////////////
+type GetWebsiteCommand struct{}
+
+func (cmd *GetWebsiteCommand) Execute(message *Message, user *models.User) {
+
+	msg := fmt.Sprintf("Now all your searches will be from the ' %s 'website.", message.Value)
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+
+func (cmd *GetWebsiteCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+}
+
+// ////////////////////////////////////
 type StartCommand struct{}
 
 func (cmd *StartCommand) Execute(message *Message, user *models.User) {
@@ -157,6 +203,64 @@ func (cmd *SendLocationCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.USER}
 }
 
+// /////////////////////////////////
+type BookmarkCommand struct{}
+
+func (cmd *BookmarkCommand) Execute(message *Message, user *models.User) {
+	bookmarks, err := bookmarkRepository.FindAll(uint(message.From.ID))
+	var msg string
+	if err != nil {
+		log.Printf("Error finding bookmarks: %v", err)
+		msg = "There was an error fetching your bookmarks. Please try again later."
+	} else {
+		// msg = "Your bookmarks:\n"
+		for _, b := range bookmarks {
+			msg += fmt.Sprintf("   ID: %d, Post ID: %+v\n", b.ID, b.Post)
+			msg += fmt.Sprint("-------------------------\n")
+		}
+	}
+
+	msg += "\nTo create new bookmark:\n\tsend me Post ID with pattern 'B=<number>'"
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+func (cmd *BookmarkCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER}
+}
+
+// /////////////////////////////////
+type GetBookmarkIDCommand struct{}
+
+func (cmd *GetBookmarkIDCommand) Execute(message *Message, user *models.User) {
+	var msg string
+	id, err := strconv.ParseInt(message.Value[2:], 10, 64)
+	if err != nil {
+		msg = "Invalid ID format. Please use 'B=<number>'."
+	}
+	post, err := postRepository.FindByID(uint(id))
+	if err != nil {
+		log.Printf("Error finding post: %v", err)
+		msg = "There was an error fetching post. Please try again later."
+	} else {
+		user, err := userRepository.Find(uint(message.From.ID))
+		if err != nil {
+			log.Printf("Error finding user: %v", err)
+			msg = "There was an error fetching user. Please try again later."
+		} else {
+			err = bookmarkRepository.Save(post, user)
+			if err != nil {
+				log.Printf("Error saving bookmark: %v", err)
+				msg = "There was an error bookmarking this post. Please try again later."
+			} else {
+				msg = "Done!"
+			}
+		}
+	}
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+func (cmd *GetBookmarkIDCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER}
+}
+
 // ////////////////////////////////////
 type SearchCommand struct{}
 
@@ -200,8 +304,23 @@ func (cmd *FilterCommand) AllowedRoles() []models.Role {
 type PopularsCommand struct{}
 
 func (cmd *PopularsCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered populars"
+	msg := "    All Popular Advertisements:\n\n"
+	ads, err := postRepository.GetMostVisitedPost()
+	if err != nil {
+		msg = "Error fetching posts: "
+		log.Fatal(msg + err.Error())
+	} else {
+		if len(ads) == 0 {
+			msg = "Nothing found"
+		} else {
+			for _, a := range ads {
+				msg += fmt.Sprintf("%s  \n", a.Title) //, a.Post.WatchedNum)
+				msg += fmt.Sprint("-------------------------\n")
+			}
+		}
+	}
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+	return
 }
 func (cmd *PopularsCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.USER}
@@ -272,7 +391,7 @@ func (cmd *PremiumCommand) AllowedRoles() []models.Role {
 type GetPremiumIdCommand struct{}
 
 func (cmd *GetPremiumIdCommand) Execute(message *Message, user *models.User) {
-	msg := fmt.Sprintf("User with id :%s changed to Premium client.", message.Title)
+	msg := fmt.Sprintf("User with id :%s changed to Premium client.", message.Value[3:])
 	id, err := strconv.ParseInt(message.Value[3:], 10, 64)
 	if err != nil {
 		msg = "Invalid ID format. Please use 'Id=<number>'."
@@ -321,10 +440,19 @@ func (cmd *AdminCommand) AllowedRoles() []models.Role {
 type MonitorCommand struct{}
 
 func (cmd *MonitorCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered Monitor"
+
+	msg := "You entered Monitor\nCrawls\n\n"
+	/////////////
+	crawlHistories := postRepository.GetAllCrawlHistory()
+	for _, crawl := range crawlHistories {
+		msg += fmt.Sprintf("\nID: %v, CPU: %v, Memory: %v\n", crawl.ID, crawl.CpuUsage, crawl.MemoryUsage)
+
+	}
+	/////////////
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 	return
 }
+
 func (cmd *MonitorCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.SUPER_ADMIN}
 }
@@ -333,7 +461,21 @@ func (cmd *MonitorCommand) AllowedRoles() []models.Role {
 type AdvertisementsCommand struct{}
 
 func (cmd *AdvertisementsCommand) Execute(message *Message, user *models.User) {
-	msg := "You entered Advertisements"
+	msg := "    Advertisements:\n\n"
+	ads, err := postRepository.GetAllPosts()
+	if err != nil {
+		msg = "Error fetching posts: "
+		log.Fatal(msg + err.Error())
+	} else {
+		if len(ads) == 0 {
+			msg = "Nothing found"
+		} else {
+			for _, a := range ads {
+				msg += fmt.Sprintf("%s  \n", a.Title) //, a.Post.WatchedNum)
+				msg += fmt.Sprint("-------------------------\n")
+			}
+		}
+	}
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 	return
 }

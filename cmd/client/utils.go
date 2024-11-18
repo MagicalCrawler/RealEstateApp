@@ -3,9 +3,12 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -137,7 +140,7 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 				},
 				{
 
-					{Text: "ََAdvertisements"},
+					{Text: "Advertisements"},
 					{Text: "Crawler Setting"},
 				},
 			},
@@ -148,16 +151,21 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 		return ReplyKeyboardMarkupWithLocation{
 			Keyboard: [][]KeyboardButton{
 				{
-					{Text: "Search"},
 					{Text: "Filter"},
+					{Text: "Search"},
+					{Text: "Bookmark"},
+				},
+				{
+					// {Text: "Help"},
+					{Text: "Send Location"},
+					{Text: "Export CSV"},
 				},
 				{
 					{Text: "Setting"},
 					{Text: "Populars"},
 				},
 				{
-					{Text: "Send Location"},
-					{Text: "Help"},
+					{Text: "Select Resource Website"},
 				},
 			},
 			ResizeKeyboard:  true,
@@ -534,4 +542,60 @@ func createFilter(userId uint) {
 
 func cancelFilter(userId uint) {
 	userFilterItems[userId] = nil
+}
+
+func promptUserForInput(chatID int64, prompt string) {
+	sendMessage(int(chatID), prompt)
+}
+
+func sendFile(chatID int64, content []byte, fileType string) ([]byte, error) {
+	var (
+		buf    = new(bytes.Buffer)
+		writer = multipart.NewWriter(buf)
+	)
+
+	chatIdField, err := writer.CreateFormField("chat_id")
+	if err != nil {
+		return []byte{}, err
+	}
+	chatIdByteArray := make([]byte, 8)
+	binary.LittleEndian.PutUint64(chatIdByteArray, uint64(chatID))
+	_, err = chatIdField.Write(chatIdByteArray)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	part, err := writer.CreateFormFile("document", "result"+fileType)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	_, err = part.Write(content)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	err = writer.Close()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/sendDocument", apiURL), buf)
+	if err != nil {
+		return []byte{}, err
+	}
+	req.Header.Add("Content-Type", writer.FormDataContentType())
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer res.Body.Close()
+
+	cnt, err := io.ReadAll(res.Body)
+	if err != nil {
+		return []byte{}, err
+	}
+	return cnt, nil
 }

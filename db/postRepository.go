@@ -2,27 +2,79 @@ package db
 
 import (
 	"errors"
+	"log/slog"
+	"strings"
+
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	"github.com/MagicalCrawler/RealEstateApp/types"
 	"gorm.io/gorm"
-	"strings"
 )
 
 type PostRepo interface {
 	PostIsExist(post models.Post) bool
 	PostHistoryIsExist(postHistory models.PostHistory) bool
 	FindByUnicode(UniCode string) (models.Post, models.PostHistory, error)
+	FindByID(ID uint) (models.Post, error)
 	PostSaving(uniCode string, src types.WebsiteSource) (models.Post, error)
 	PostHistorySaving(postHistory models.PostHistory, post models.Post, crawlHistory models.CrawlHistory) (models.PostHistory, error)
 	CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error)
+
+	GetAllCrawlHistory() []models.CrawlHistory
+
+	CrawlHistoryIsExist(crawlHistory models.CrawlHistory) bool
+	GetMostVisitedPost() ([]models.PostHistory, error)
+	GetAllPosts() ([]models.PostHistory, error)
 }
 
 type PostRepository struct {
 	dbConnection *gorm.DB
+	logger       *slog.Logger
 }
 
 func NewPostRepository(dbConnection *gorm.DB) PostRepo {
 	return PostRepository{dbConnection: dbConnection}
+}
+func (pr PostRepository) CrawlHistoryIsExist(crawlHistory models.CrawlHistory) bool {
+	var isExist bool
+	err := pr.dbConnection.Table("crawl_histories").
+		Select("count(*) > 0").
+		Where("id = ?", crawlHistory.ID).
+		Find(&isExist).Error
+	if err != nil {
+		return false
+	}
+	return isExist
+}
+func (pr PostRepository) GetMostVisitedPost() ([]models.PostHistory, error) {
+	var posts []models.PostHistory
+
+	err := pr.dbConnection.Table("posts").
+		Select("posts.unique_code, posts.watched_num, post_histories.title, post_histories.post_url, post_histories.price").
+		Joins("INNER JOIN post_histories ON post_histories.post_id = posts.id").
+		Order("posts.watched_num DESC").
+		Limit(10).
+		Scan(&posts).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
+}
+func (pr PostRepository) GetAllPosts() ([]models.PostHistory, error) {
+	var posts []models.PostHistory
+
+	err := pr.dbConnection.Table("posts").
+		Select("DISTINCT posts.unique_code, posts.watched_num, post_histories.title, post_histories.post_url, post_histories.price").
+		Joins("INNER JOIN post_histories ON post_histories.post_id = posts.id").
+		Order("posts.watched_num DESC").
+		Scan(&posts).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, nil
 }
 
 func (pr PostRepository) PostIsExist(post models.Post) bool {
@@ -33,7 +85,6 @@ func (pr PostRepository) PostIsExist(post models.Post) bool {
 	} else {
 		return isExist
 	}
-	return false
 }
 func (pr PostRepository) PostSaving(uniCode string, src types.WebsiteSource) (models.Post, error) {
 	post := models.Post{
@@ -65,7 +116,7 @@ func (pr PostRepository) PostHistoryIsExist(postHistory models.PostHistory) bool
 	} else {
 		return isExist
 	}
-	return false
+
 }
 func (pr PostRepository) FindByUnicode(UniCode string) (models.Post, models.PostHistory, error) {
 	var post models.Post
@@ -73,6 +124,12 @@ func (pr PostRepository) FindByUnicode(UniCode string) (models.Post, models.Post
 	err := pr.dbConnection.First(&post, "unique_code = ?", UniCode).Error
 	pr.dbConnection.Where("post_id = ?", post.ID).Find(&postHistory)
 	return post, postHistory, err
+
+}
+func (pr PostRepository) FindByID(ID uint) (models.Post, error) {
+	var post models.Post
+	err := pr.dbConnection.First(&post, "ID = ?", ID).Error
+	return post, err
 
 }
 
@@ -112,7 +169,6 @@ func (daba PostRepository) PostHistorySaving(postHistory models.PostHistory, pos
 
 func (dba PostRepository) CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error) {
 	myCrawlHistory := models.CrawlHistory{
-		ID:          crawlHistory.ID,
 		PostNum:     crawlHistory.PostNum,
 		CpuUsage:    crawlHistory.CpuUsage,
 		MemoryUsage: crawlHistory.MemoryUsage,
@@ -123,4 +179,10 @@ func (dba PostRepository) CrawlHistorySaving(crawlHistory models.CrawlHistory) (
 
 	err := dba.dbConnection.Create(&myCrawlHistory).Error
 	return myCrawlHistory, err
+}
+
+func (pr PostRepository) GetAllCrawlHistory() []models.CrawlHistory {
+	var crawlHistories []models.CrawlHistory
+	pr.dbConnection.Find(&crawlHistories)
+	return crawlHistories
 }

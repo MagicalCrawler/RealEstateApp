@@ -9,7 +9,6 @@ import (
 	"github.com/MagicalCrawler/RealEstateApp/db"
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
-	"gorm.io/gorm"
 )
 
 type Command interface {
@@ -18,15 +17,20 @@ type Command interface {
 }
 
 var (
-	CommandRegistry map[string]Command
-	userRepository  db.UserRepository
-	filterRepository db.FilterItemRepository
-	apiURL          string
+	CommandRegistry    map[string]Command
+	userRepository     db.UserRepository
+	postRepository     db.PostRepo
+	bookmarkRepository db.BookmarkRepo
+	filterRepository   db.FilterItemRepository
+	apiURL             string
 )
 
-func Run(dbConnection *gorm.DB) {
-	userRepository = db.CreateNewUserRepository(dbConnection)
-	filterRepository = db.NewFilterItemRepository(dbConnection)
+func Run(userRepo db.UserRepository, postRepo db.PostRepo, bookmarkRepo db.BookmarkRepo) {
+	postRepository = postRepo
+	userRepository = userRepo
+	bookmarkRepository = bookmarkRepo
+  filterRepository = db.NewFilterItemRepository(dbConnection)
+
 	apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 	initializeCommands()
 
@@ -81,6 +85,16 @@ func handleMessage(message *Message) {
 	} else if strings.Contains(message.Title, "redius=") {
 		message.Value = message.Title
 		message.Title = "Get Redius"
+	} else if strings.Contains(message.Title, "B=") {
+		message.Value = message.Title
+		message.Title = "Get Bookmark Id"
+	} else if message.Title == "s" || message.Title == "d" {
+		if message.Title == "s" {
+			message.Value = "sheypoor"
+		} else {
+			message.Value = "divar"
+		}
+		message.Title = "Get Website"
 	} else if message.Title == "c" {
 		message.Title = "Get Admin Id"
 	}
