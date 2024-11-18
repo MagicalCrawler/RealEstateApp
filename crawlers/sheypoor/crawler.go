@@ -41,7 +41,24 @@ func NewSheypoorCrawler() *SheypoorCrawler {
 		userAgents: []string{
 			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36",
 			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
-			// Add more user agents as needed...
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+			"Mozilla/5.0 (Linux; Android 10; SM-G975F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36",
+			"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15A372 Safari/604.1",
+			"Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36",
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0",
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15",
+			"Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36",
+			"Mozilla/5.0 (Linux; Android 9; SM-G960F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.89 Mobile Safari/537.36",
+			"Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15A5341f Safari/604.1",
+			"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36",
+			"Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; AS; rv:11.0) like Gecko",
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:42.0) Gecko/20100101 Firefox/42.0",
+			"Mozilla/5.0 (Linux; Android 10; SM-A505F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Mobile Safari/537.36",
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64; Trident/7.0; AS; rv:11.0) like Gecko",
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36",
+			"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
+			"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0",
+			"Mozilla/5.0 (Linux; U; Android 9; en-US; SM-G960U Build/PPR1.180610.011) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.89 Mobile Safari/537.36",
 		},
 		logger: utils.NewLogger("Sheypoor_Crawler"),
 	}
@@ -260,25 +277,106 @@ func (c *SheypoorCrawler) CrawlPostDetails(ctx context.Context, postURL string) 
 			continue
 		}
 
-		// Parse post details
-		splitURL := strings.Split(postURL, "/")
-		post.ID = splitURL[len(splitURL)-1]
-		post.Link = postURL
-		post.Title = strings.TrimSpace(doc.Find("h2.text-heading-4-bolder").Text())
-		post.Description = strings.TrimSpace(doc.Find("small.text-heading-6-lighter").First().Text())
-		post.Website = types.Sheypoor
-
-		// Check if essential details are present
-		if post.Title == "" || post.Description == "" {
-			c.logger.Error("Missing essential post details for: ", postURL, " | Attempt: ", attempt)
-			time.Sleep(retryDelay)
-			continue
+		// Extract location details
+		var locationDetails []string
+		doc.Find("nav#UVpPz ul li a").Each(func(i int, s *goquery.Selection) {
+			locationDetails = append(locationDetails, strings.TrimSpace(s.Text()))
+		})
+		if len(locationDetails) > 0 {
+			post.City = crawlerModels.City{
+				Name:  locationDetails[0], // Assuming the first element is the city name
+				Slug:  strings.ToLower(strings.ReplaceAll(locationDetails[0], " ", "-")),
+				Level: "city",
+			}
+			if len(locationDetails) > 1 {
+				post.Neighborhood = strings.Join(locationDetails[1:], ", ")
+			}
 		}
 
-		// Extract additional details
-		c.extractPostDetails(doc, &post)
+		// Extract property images
+		var imageUrls []string
+		doc.Find("div.swiper-slide img").Each(func(i int, s *goquery.Selection) {
+			if src, exists := s.Attr("src"); exists && src != "" {
+				imageUrls = append(imageUrls, src)
+			}
+		})
+		if len(imageUrls) > 0 {
+			post.Images = imageUrls
+		}
 
-		// If successful, return
+		// Extract title of the post
+		if title := doc.Find("h1#listing-title").Text(); title != "" {
+			post.Title = strings.TrimSpace(title)
+		}
+
+		// Extract price information
+		if price := doc.Find("div.tOq3m span strong").Text(); price != "" {
+			post.Price = strings.TrimSpace(price)
+		}
+
+		// Extract property features
+		var features []string
+		doc.Find("div.C7Rh9").Each(func(i int, s *goquery.Selection) {
+			featureName := s.Find("p._2e124").Text()
+			featureValue := s.Find("p._874-x").Text()
+			if featureName != "" && featureValue != "" {
+				feature := featureName + ": " + featureValue
+				features = append(features, strings.TrimSpace(feature))
+			}
+		})
+		if len(features) > 0 {
+			post.Features = features
+		}
+
+		// Extract description
+		if description, err := doc.Find("div.VNOCj div.MQJ5W").Html(); err == nil {
+			post.Description = strings.TrimSpace(description)
+		}
+
+		// Extract area, rooms, year built, and other relevant information
+		doc.Find("div.C7Rh9").Each(func(i int, s *goquery.Selection) {
+			featureName := s.Find("p._2e124").Text()
+			featureValue := s.Find("p._874-x").Text()
+			if featureName != "" && featureValue != "" {
+				switch strings.TrimSpace(featureName) {
+				case "متراژ":
+					post.Area = strings.TrimSpace(featureValue)
+				case "سال ساخت":
+					post.YearBuilt = strings.TrimSpace(featureValue)
+				case "اتاق‌ها":
+					post.Rooms = strings.TrimSpace(featureValue)
+				case "قیمت هر متر مربع":
+					post.PricePerSquareMeter = strings.TrimSpace(featureValue)
+				case "طبقه":
+					post.Floor = strings.TrimSpace(featureValue)
+				}
+			}
+		})
+
+		// Extract rental specific metadata if applicable
+		rentalMetadata := &crawlerModels.RentalMetadata{}
+		if capacity := doc.Find("div.rental-capacity").Text(); capacity != "" {
+			rentalMetadata.Capacity = strings.TrimSpace(capacity)
+		}
+		if normalDayPrice := doc.Find("span.normal-day-price").Text(); normalDayPrice != "" {
+			rentalMetadata.NormalDayPrice = strings.TrimSpace(normalDayPrice)
+		}
+		if weekendPrice := doc.Find("span.weekend-price").Text(); weekendPrice != "" {
+			rentalMetadata.WeekendPrice = strings.TrimSpace(weekendPrice)
+		}
+		if holidayPrice := doc.Find("span.holiday-price").Text(); holidayPrice != "" {
+			rentalMetadata.HolidayPrice = strings.TrimSpace(holidayPrice)
+		}
+		if extraPersonCost := doc.Find("span.extra-person-cost").Text(); extraPersonCost != "" {
+			rentalMetadata.ExtraPersonCost = strings.TrimSpace(extraPersonCost)
+		}
+
+		if rentalMetadata.Capacity != "" || rentalMetadata.NormalDayPrice != "" || rentalMetadata.WeekendPrice != "" || rentalMetadata.HolidayPrice != "" || rentalMetadata.ExtraPersonCost != "" {
+			post.RentalMetadata = rentalMetadata
+		}
+
+		post.Website = types.Sheypoor
+
 		return post, nil
 	}
 
