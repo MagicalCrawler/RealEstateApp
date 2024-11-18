@@ -58,6 +58,8 @@ func (s *CityService) GetCities() ([]crawlerModels.City, error) {
 
 	s.lastUpdated = time.Now()
 
+	s.logger.Info("Cities fetched!")
+
 	// Filter cities based on app settings
 	provincialCenters, err := utils.LoadAppSettingsFile()
 	if err != nil {
@@ -76,5 +78,6 @@ func (s *CityService) GetCities() ([]crawlerModels.City, error) {
 	}
 
 	s.cache = filteredCities
+	s.logger.Info("Filtered cities fetched!")
 	return s.cache, nil
 }
