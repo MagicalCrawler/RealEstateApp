@@ -14,6 +14,7 @@ type PostRepo interface {
 	PostIsExist(post models.Post) bool
 	PostHistoryIsExist(postHistory models.PostHistory) bool
 	FindByUnicode(UniCode string) (models.Post, models.PostHistory, error)
+	FindByID(ID uint) (models.Post, error)
 	PostSaving(uniCode string, src types.WebsiteSource) (models.Post, error)
 	PostHistorySaving(postHistory models.PostHistory, post models.Post, crawlHistory models.CrawlHistory) (models.PostHistory, error)
 	CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error)
@@ -23,7 +24,6 @@ type PostRepo interface {
 	CrawlHistoryIsExist(crawlHistory models.CrawlHistory) bool
 	GetMostVisitedPost() ([]models.PostHistory, error)
 	GetAllPosts() ([]models.PostHistory, error)
-
 }
 
 type PostRepository struct {
@@ -124,6 +124,12 @@ func (pr PostRepository) FindByUnicode(UniCode string) (models.Post, models.Post
 	err := pr.dbConnection.First(&post, "unique_code = ?", UniCode).Error
 	pr.dbConnection.Where("post_id = ?", post.ID).Find(&postHistory)
 	return post, postHistory, err
+
+}
+func (pr PostRepository) FindByID(ID uint) (models.Post, error) {
+	var post models.Post
+	err := pr.dbConnection.First(&post, "ID = ?", ID).Error
+	return post, err
 
 }
 
