@@ -7,6 +7,7 @@ import (
 
 type BookmarkRepo interface {
 	Find(bookmark models.Bookmark) (models.Bookmark, error)
+	FindAll(UserID uint) ([]models.Bookmark, error)
 	Save(post models.Post, user models.User) error
 	Delete(bookmark models.Bookmark) error
 }
@@ -24,6 +25,14 @@ func (br BookmarkRepositoryImpl) Find(bookmark models.Bookmark) (models.Bookmark
 		return models.Bookmark{}, err
 	}
 	return bookmark, nil
+
+}
+func (br BookmarkRepositoryImpl) FindAll(userID uint) ([]models.Bookmark, error) {
+	bookmarks := []models.Bookmark{}
+	if err := br.dbConnection.Find(&bookmarks).Error; err != nil {
+		return []models.Bookmark{}, err
+	}
+	return bookmarks, nil
 
 }
 
