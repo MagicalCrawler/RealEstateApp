@@ -71,8 +71,9 @@ func pollUpdates(ctx context.Context) {
 				offset = update.UpdateID + 1
 				if update.Message != nil {
 					handleMessage(update.Message)
-				} else if update.Callback != nil {
-					// handleCallback(update.Callback)
+				}
+
+				if update.Callback != nil {
 					handleCallbackQuery(update.Callback)
 				}
 			}
@@ -313,7 +314,7 @@ var userFilters = make(map[uint64]map[string]string)
 // Function to handle callback queries (filter selection)
 func handleCallbackQuery(callbackQuery *CallbackQuery) {
 	userID := uint64(callbackQuery.From.ID)
-	_, err := userRepository.FindByTelegramID(userID)
+	user, err := userRepository.FindByTelegramID(userID)
 
 	if err != nil {
 		log.Printf("Error fetching user: %v", err)
@@ -324,8 +325,8 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 	chatID := int64(callbackQuery.Message.Chat.ID)
 
 	// Initialize the user's filter map if it doesn't exist
-	if _, exists := userFilters[userID]; !exists {
-		userFilters[userID] = make(map[string]string)
+	if _, exists := userFilters[uint64(user.ID)]; !exists {
+		userFilters[uint64(user.ID)] = make(map[string]string)
 	}
 
 	// Prompt user for input based on the selected filter
@@ -360,7 +361,7 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 	}
 
 	// Temporarily save the selected filter type
-	userFilters[userID]["lastFilter"] = selectedFilter
+	userFilters[uint64(user.ID)]["lastFilter"] = selectedFilter
 	log.Printf("Saved temporary filter for user %d: %s", userID, selectedFilter)
 }
 
@@ -373,57 +374,66 @@ func saveUserFilterInput(chatId int, userID uint, value string) {
 		userFilterItems[userID] = filterItem
 	}
 
+	// Debug: Log the filter type and value
+	filterType := userFilters[uint64(userID)]["lastFilter"]
+	log.Printf("Filter Type: %s, Value: %s", filterType, value)
+
 	// Update the relevant field based on filterType
-	switch userFilters[uint64(userID)]["lastFilter"] {
+	switch filterType {
 	case "Price Range":
-		// Assuming the format is "min-max"
 		var priceMin, priceMax float64
 		if _, err := fmt.Sscanf(value, "%f-%f", &priceMin, &priceMax); err == nil {
 			filterItem.PriceMin = priceMin
 			filterItem.PriceMax = priceMax
+		} else {
+			log.Printf("Error parsing Price Range: %v", err)
 		}
 	case "City":
 		filterItem.City = value
+		log.Printf("City updated to: %s", filterItem.City) // Debug: Log the update
 	case "Neighborhood":
 		filterItem.Neighborhood = value
 	case "Area Range":
-		// Assuming the format is "min-max"
 		var areaMin, areaMax int
 		if _, err := fmt.Sscanf(value, "%d-%d", &areaMin, &areaMax); err == nil {
 			filterItem.AreaMin = areaMin
 			filterItem.AreaMax = areaMax
+		} else {
+			log.Printf("Error parsing Area Range: %v", err)
 		}
 	case "Bedroom Count Range":
-		// Assuming the format is "min-max"
 		var bedroomsMin, bedroomsMax int
 		if _, err := fmt.Sscanf(value, "%d-%d", &bedroomsMin, &bedroomsMax); err == nil {
 			filterItem.BedroomsMin = bedroomsMin
 			filterItem.BedroomsMax = bedroomsMax
+		} else {
+			log.Printf("Error parsing Bedroom Count Range: %v", err)
 		}
 	case "Category (Rent/Buy/Mortgage)":
 		filterItem.Category = value
 	case "Building Age Range":
-		// Assuming the format is "min-max"
 		var ageMin, ageMax int
 		if _, err := fmt.Sscanf(value, "%d-%d", &ageMin, &ageMax); err == nil {
 			filterItem.AgeMin = ageMin
 			filterItem.AgeMax = ageMax
+		} else {
+			log.Printf("Error parsing Building Age Range: %v", err)
 		}
 	case "Property Type (Apartment/Villa)":
 		filterItem.PropertyType = value
 	case "Floor Range":
-		// Assuming the format is "min-max"
 		var floorMin, floorMax int
 		if _, err := fmt.Sscanf(value, "%d-%d", &floorMin, &floorMax); err == nil {
 			filterItem.FloorMin = floorMin
 			filterItem.FloorMax = floorMax
+		} else {
+			log.Printf("Error parsing Floor Range: %v", err)
 		}
 	case "Storage Availability":
 		filterItem.HasStorage = (value == "yes")
 	case "Elevator Availability":
 		filterItem.HasElevator = (value == "yes")
 	case "Advertisement Creation Date Range":
-		// Assuming the format is "YYYY-MM-DD to YYYY-MM-DD"
 		var startDate, endDate time.Time
 		dates := strings.Split(value, " to ")
 		if len(dates) == 2 {
@@ -434,7 +444,9 @@ func saveUserFilterInput(chatId int, userID uint, value string) {
 		}
 	}
 
-	sendFilterConfirmationMenu(int64(chatId), strconv.Itoa(int(userFilterItems[userID].ID)))
+	// Send confirmation menu
+	sendFilterConfirmationMenu(int64(chatId))
+
 	// Log the updated filter item
 	log.Printf("Updated filter item for user %d: %+v", userID, filterItem)
 }
@@ -443,7 +455,7 @@ func promptUserForInput(chatID int64, prompt string) {
 	sendMessage(int(chatID), prompt)
 }
 
-func sendFilterConfirmationMenu(chatID int64, filter string) {
+func sendFilterConfirmationMenu(chatID int64) {
 	keyboard := ReplyKeyboardMarkupWithLocation{
 		Keyboard: [][]KeyboardButton{
 			{
@@ -451,7 +463,7 @@ func sendFilterConfirmationMenu(chatID int64, filter string) {
 					Text: "SaveFilter",
 				},
 				KeyboardButton{
-					Text: "Cancel",
+					Text: "CancelFilter",
 				},
 			},
 		},
@@ -459,8 +471,7 @@ func sendFilterConfirmationMenu(chatID int64, filter string) {
 		OneTimeKeyboard: true,
 	}
 
-	text := fmt.Sprintf("You selected the filter: *%s*.\nDo you want to confirm or cancel?", filter)
-	sendMessageWithKeyboard(int(chatID), text, keyboard)
+	sendMessageWithKeyboard(int(chatID), "continue add filter", keyboard)
 }
 
 func showFilterMenu(chatID int, userId uint) {
@@ -518,6 +529,7 @@ func showFilterOptions(chatID int) {
 		msg,
 		createInlineKeyboardFromOptions(filterOptions),
 	)
+	sendFilterConfirmationMenu(int64(chatID))
 }
 
 func handleFilterSelection(userID uint, filterID uint) {
@@ -531,7 +543,9 @@ func handleFilterSelection(userID uint, filterID uint) {
 
 func createFilter(userId uint) {
 	// Save the FilterItem
+	userFilterItems[userId].UserID = userId
 	createdFilterItem, err := filterRepository.Create(*userFilterItems[userId])
+
 	if err != nil {
 		fmt.Println("Error saving filter item:", err)
 		return
@@ -542,6 +556,7 @@ func createFilter(userId uint) {
 
 func cancelFilter(userId uint) {
 	userFilterItems[userId] = nil
+	userFilters[uint64(userId)] = nil
 }
 
 func sendFile(chatID int64, content []byte, fileType string) ([]byte, error) {

@@ -23,7 +23,7 @@ func initializeCommands() {
 		"Create New Filter":   &CreateFilterCommand{},
 		"Location Attachment": &GetLocationAttachmentCommand{},
 		"SaveFilter":      &SaveFilterCommand{},
-		"cancel_filter":         &CancelFilterCommand{},
+		"CancelFilter":         &CancelFilterCommand{},
 
 		"Select Resource Website": &GetResourceWebsite{},
 		"Bookmark":                &BookmarkCommand{},
