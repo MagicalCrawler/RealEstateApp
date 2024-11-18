@@ -444,23 +444,23 @@ func promptUserForInput(chatID int64, prompt string) {
 }
 
 func sendFilterConfirmationMenu(chatID int64, filter string) {
-	keyboard := InlineKeyboardMarkup{
-		InlineKeyboard: [][]InlineKeyboardButton{
+	keyboard := ReplyKeyboardMarkupWithLocation{
+		Keyboard: [][]KeyboardButton{
 			{
-				{
-					Text: "Confirm",
-					Data: "confirm_filter",
+				KeyboardButton{
+					Text: "SaveFilter",
 				},
-				{
+				KeyboardButton{
 					Text: "Cancel",
-					Data: "cancel_filter",
 				},
 			},
 		},
+		ResizeKeyboard:  true,
+		OneTimeKeyboard: true,
 	}
 
 	text := fmt.Sprintf("You selected the filter: *%s*.\nDo you want to confirm or cancel?", filter)
-	sendMessageWithInlineKeyboard(int(chatID), text, keyboard)
+	sendMessageWithKeyboard(int(chatID), text, keyboard)
 }
 
 func showFilterMenu(chatID int, userId uint) {

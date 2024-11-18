@@ -22,7 +22,7 @@ func initializeCommands() {
 		"Filter":              &FilterCommand{},
 		"Create New Filter":   &CreateFilterCommand{},
 		"Location Attachment": &GetLocationAttachmentCommand{},
-		"confirm_filter":      &ConfirmFilterCommand{},
+		"SaveFilter":      &SaveFilterCommand{},
 		"cancel_filter":         &CancelFilterCommand{},
 
 		"Select Resource Website": &GetResourceWebsite{},
@@ -109,17 +109,17 @@ func (cmd *StartCommand) AllowedRoles() []models.Role {
 
 ////// confirm filter
 
-type ConfirmFilterCommand struct{}
+type SaveFilterCommand struct{}
 
-func (cmd *ConfirmFilterCommand) Execute(message *Message, user *models.User) {
-
-	msg := fmt.Sprintf("filter confirmed")
+func (cmd *SaveFilterCommand) Execute(message *Message, user *models.User) {
+	
 	createFilter(user.ID)
-	sendMessage(message.Chat.ID, msg)
+	msg := fmt.Sprintf("filter saved")
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 	return
 }
 
-func (cmd *ConfirmFilterCommand) AllowedRoles() []models.Role {
+func (cmd *SaveFilterCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.USER}
 }
 
@@ -129,11 +129,9 @@ type CancelFilterCommand struct{}
 func (cmd *CancelFilterCommand) Execute(message *Message, user *models.User) {
 	// Here, we would typically remove the user's filter or mark it as canceled
 	cancelFilter(user.ID)
-	sendMessageWithKeyboard(message.Chat.ID, getWelcomeMessage(message.From.FirstName, user.Role), getKeyboard(user.Role))
 
-	msg := fmt.Sprintf("Your filter has been canceled")
-	sendMessage(message.Chat.ID, msg)
-	return
+	msg := fmt.Sprintf("Your filter has been canceled :(")
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 
 func (cmd *CancelFilterCommand) AllowedRoles() []models.Role {
