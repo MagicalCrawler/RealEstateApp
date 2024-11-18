@@ -23,9 +23,10 @@ func main() {
 	userRepository := db.CreateNewUserRepository(dbConnection)
 	postRepository := db.NewPostRepository(dbConnection)
 	bookmarkRepository := db.NewBookmarkRepository(dbConnection)
+	filterRepository := db.NewFilterItemRepository(dbConnection)
 	crawlerService := services.NewCrawlerService(&postRepository)
 	crawlerService.Start()
 
 	logger.Debug("Run the Telegram bot")
-	client.Run(userRepository, postRepository, bookmarkRepository)
+	client.Run(userRepository, postRepository, bookmarkRepository, filterRepository)
 }

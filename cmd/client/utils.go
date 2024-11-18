@@ -544,10 +544,6 @@ func cancelFilter(userId uint) {
 	userFilterItems[userId] = nil
 }
 
-func promptUserForInput(chatID int64, prompt string) {
-	sendMessage(int(chatID), prompt)
-}
-
 func sendFile(chatID int64, content []byte, fileType string) ([]byte, error) {
 	var (
 		buf    = new(bytes.Buffer)

@@ -25,11 +25,11 @@ var (
 	apiURL             string
 )
 
-func Run(userRepo db.UserRepository, postRepo db.PostRepo, bookmarkRepo db.BookmarkRepo) {
+func Run(userRepo db.UserRepository, postRepo db.PostRepo, bookmarkRepo db.BookmarkRepo, filterRepo db.FilterItemRepository) {
 	postRepository = postRepo
 	userRepository = userRepo
 	bookmarkRepository = bookmarkRepo
-  filterRepository = db.NewFilterItemRepository(dbConnection)
+	filterRepository = filterRepo
 
 	apiURL = "https://api.telegram.org/bot" + utils.GetConfig("TELEGRAM_TOKEN")
 	initializeCommands()
