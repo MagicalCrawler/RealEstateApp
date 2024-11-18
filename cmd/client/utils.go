@@ -611,7 +611,7 @@ func sendFile(chatID int64, content []byte, fileType string) ([]byte, error) {
 	return cnt, nil
 }
 
-func searchLastFilter(userID int) {
+func searchLastFilter(chatID int, userID int) {
 	lastFilterItem, err := userRepository.GetLastFilterItem(uint(userID))
 	if err != nil {
 		log.Printf("Error retrieving last filter item: %v", err)
@@ -623,7 +623,42 @@ func searchLastFilter(userID int) {
 	}
 
 	posts, err := filterRepository.SearchPostHistory(*lastFilterItem)
+	if err != nil {
+		log.Printf("Error fetching posts: %v", err)
+		sendMessage(chatID, "An error occurred while fetching posts.")
+		return
+	}
 
-	log.Printf("Please add some filter :)", posts)
+	if len(posts) == 0 {
+		// Inform the user if no posts match the filter
+		sendMessage(chatID, "No posts found matching your filter.")
+		return
+	}
 
+	// Generate the inline keyboard
+	keyboard := createInlineKeyboardFromPosts(posts)
+
+	// Prepare the message text
+	text := "Here are the posts matching your filter:\nSelect one to view details."
+
+	// Send the message with the inline keyboard
+	sendMessageWithInlineKeyboard(chatID, text, keyboard)
+}
+
+// Function to create an inline keyboard from a list of posts
+func createInlineKeyboardFromPosts(posts []models.PostHistory) InlineKeyboardMarkup {
+	buttons := make([][]InlineKeyboardButton, 0)
+
+	for _, post := range posts {
+		// Each row will have one button with the post's title or summary
+		row := []InlineKeyboardButton{
+			{
+				Text: fmt.Sprintf("%s - %d", post.Title, post.Price), // Display title and price
+				Data: fmt.Sprintf("post_%d", post.ID),               // Unique callback data
+			},
+		}
+		buttons = append(buttons, row)
+	}
+
+	return InlineKeyboardMarkup{InlineKeyboard: buttons}
 }
