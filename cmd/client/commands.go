@@ -20,8 +20,10 @@ func initializeCommands() {
 		"Select Resource Website": &GetResourceWebsite{},
 		"Setting":                 &SettingCommand{},
 		"Filter":                  &FilterCommand{},
+		"Bookmark":                &BookmarkCommand{},
 		"Location Attachment":     &GetLocationAttachmentCommand{},
 		"Get Website":             &GetWebsiteCommand{},
+		"Get Bookmark Id":         &GetBookmarkIDCommand{},
 		//admin commands
 		"Premium":           &PremiumCommand{},
 		"Errors":            &ErrorsCommand{},
@@ -135,6 +137,64 @@ func (cmd *SendLocationCommand) Execute(message *Message, user *models.User) {
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 func (cmd *SendLocationCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER}
+}
+
+// /////////////////////////////////
+type BookmarkCommand struct{}
+
+func (cmd *BookmarkCommand) Execute(message *Message, user *models.User) {
+	bookmarks, err := bookmarkRepository.FindAll(uint(message.From.ID))
+	var msg string
+	if err != nil {
+		log.Printf("Error finding bookmarks: %v", err)
+		msg = "There was an error fetching your bookmarks. Please try again later."
+	} else {
+		// msg = "Your bookmarks:\n"
+		for _, b := range bookmarks {
+			msg += fmt.Sprintf("   ID: %d, Post ID: %+v\n", b.ID, b.Post)
+			msg += fmt.Sprint("-------------------------\n")
+		}
+	}
+
+	msg += "\nTo create new bookmark:\n\tsend me Post ID with pattern 'B=<number>'"
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+func (cmd *BookmarkCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER}
+}
+
+// /////////////////////////////////
+type GetBookmarkIDCommand struct{}
+
+func (cmd *GetBookmarkIDCommand) Execute(message *Message, user *models.User) {
+	var msg string
+	id, err := strconv.ParseInt(message.Value[2:], 10, 64)
+	if err != nil {
+		msg = "Invalid ID format. Please use 'B=<number>'."
+	}
+	post, err := postRepository.FindByID(uint(id))
+	if err != nil {
+		log.Printf("Error finding post: %v", err)
+		msg = "There was an error fetching post. Please try again later."
+	} else {
+		user, err := userRepository.Find(uint(message.From.ID))
+		if err != nil {
+			log.Printf("Error finding user: %v", err)
+			msg = "There was an error fetching user. Please try again later."
+		} else {
+			err = bookmarkRepository.Save(post, user)
+			if err != nil {
+				log.Printf("Error saving bookmark: %v", err)
+				msg = "There was an error bookmarking this post. Please try again later."
+			} else {
+				msg = "Done!"
+			}
+		}
+	}
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+func (cmd *GetBookmarkIDCommand) AllowedRoles() []models.Role {
 	return []models.Role{models.USER}
 }
 
