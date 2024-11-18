@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/MagicalCrawler/RealEstateApp/models"
+	"gorm.io/gorm"
 )
 
 const (
@@ -460,9 +461,17 @@ func showFilterMenu(chatID int64, userId uint) {
 	// Create keyboard buttons for each filter
 	var filterButtons [][]KeyboardButton
 	if err != nil {
-		log.Printf("No filters found for user %d", userId)
-	} else {
+		if err == gorm.ErrRecordNotFound {
+			log.Printf("No filters found for user %d", userId)
+			return
+		}
+		log.Fatalf("Error retrieving filters for user %d: %v", userId, err)
+	}
 
+	// Proceed safely with filterItems
+	if len(filters) == 0 {
+		log.Printf("No filters returned for user %d", userId)
+	} else {
 		for _, filter := range filters {
 			filterButtons = append(filterButtons, []KeyboardButton{
 				{Text: strconv.Itoa(int(filter.ID))},
