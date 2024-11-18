@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	crawlerModels "github.com/MagicalCrawler/RealEstateApp/models/crawler"
+	"github.com/MagicalCrawler/RealEstateApp/types"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
 	"log"
 	"log/slog"
 	"math/rand"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -17,14 +19,14 @@ import (
 )
 
 const (
-	defaultMaxRetries  = 3
-	defaultRetryDelay  = 5 * time.Second
-	defaultPageLimit   = 1
-	defaultGotoTimeout = 30000
-	maxScrollAttempts  = 20
-	scrollWaitDuration = 5 * time.Second
-	randomSleepMin     = 3
-	randomSleepMax     = 10
+	defaultMaxRetries        = 3
+	defaultRetryDelay        = 5 * time.Second
+	defaultPageLimit         = 1
+	defaultGotoTimeout       = 30000
+	defaultMaxScrollAttempts = 5
+	scrollWaitDuration       = 2 * time.Second
+	randomSleepMin           = 3
+	randomSleepMax           = 10
 )
 
 // DivarCrawler implements the Crawler interface for the Divar website
@@ -71,8 +73,7 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 	if err != nil || pageLimit <= 0 {
 		pageLimit = defaultPageLimit
 	}
-	cityURL := fmt.Sprintf("%s/s/%s/real-estate", c.baseURL, city.Slug)
-	paginationURLs := c.getPaginationURLs(cityURL, pageLimit)
+	pageURL := fmt.Sprintf("%s/s/%s/real-estate", c.baseURL, city.Slug)
 	var allPosts []crawlerModels.Post
 
 	// Initialize Playwright
@@ -92,114 +93,102 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 	}
 	defer browser.Close()
 
-	for _, pageURL := range paginationURLs {
-		select {
-		case <-ctx.Done():
-			return allPosts, ctx.Err()
-		default:
+	select {
+	case <-ctx.Done():
+		return allPosts, ctx.Err()
+	default:
+	}
+
+	maxPageRetries, err := strconv.Atoi(utils.GetConfig("CRAWLER_MAX_RETRIES"))
+	if err != nil || maxPageRetries <= 0 {
+		maxPageRetries = defaultMaxRetries
+	}
+
+	retryDelaySeconds, err := strconv.Atoi(utils.GetConfig("CRAWLER_RETRY_DELAY"))
+	if err != nil || retryDelaySeconds <= 0 {
+		retryDelaySeconds = int(defaultRetryDelay.Seconds())
+	}
+	retryDelay := time.Duration(retryDelaySeconds) * time.Second
+
+	for attempt := 1; attempt <= maxPageRetries; attempt++ {
+		c.logger.Info("Crawling page: ", pageURL, "Attempt ", attempt)
+
+		page, err := browser.NewPage()
+		if err != nil {
+			c.logger.Error("could not create new page: ", err, " | Attempt: ", attempt)
+			time.Sleep(retryDelay)
+			continue
 		}
 
-		maxPageRetries, err := strconv.Atoi(utils.GetConfig("CRAWLER_MAX_RETRIES"))
-		if err != nil || maxPageRetries <= 0 {
-			maxPageRetries = defaultMaxRetries
-		}
-
-		retryDelaySeconds, err := strconv.Atoi(utils.GetConfig("CRAWLER_RETRY_DELAY"))
-		if err != nil || retryDelaySeconds <= 0 {
-			retryDelaySeconds = int(defaultRetryDelay.Seconds())
-		}
-		retryDelay := time.Duration(retryDelaySeconds) * time.Second
-
-		for attempt := 1; attempt <= maxPageRetries; attempt++ {
-			c.logger.Info("Crawling page: ", pageURL, "Attempt ", attempt)
-
-			page, err := browser.NewPage()
-			if err != nil {
-				c.logger.Error("could not create new page: ", err, " | Attempt: ", attempt)
-				time.Sleep(retryDelay)
-				continue
-			}
-
-			err = page.SetExtraHTTPHeaders(map[string]string{
-				"User-Agent": c.randomUserAgent(),
-				"Referer":    "https://google.com",
-			})
-			if err != nil {
-				c.logger.Error("could not set extra headers: ", err, " | Attempt: ", attempt)
-				page.Close()
-				time.Sleep(retryDelay)
-				continue
-			}
-
-			playwrightTimeout, err := strconv.Atoi(utils.GetConfig("PLAYWRIGHT_GOTO_TIMEOUT"))
-			if err != nil || playwrightTimeout <= 0 {
-				playwrightTimeout = defaultGotoTimeout
-			}
-			_, err = page.Goto(pageURL, playwright.PageGotoOptions{
-				WaitUntil: playwright.WaitUntilStateNetworkidle,
-				Timeout:   playwright.Float(float64(playwrightTimeout)),
-			})
-			if err != nil {
-				c.logger.Error("Error navigating to: ", pageURL, " | Attempt: ", attempt, " error: ", err)
-				page.Close()
-				time.Sleep(retryDelay)
-				continue
-			}
-
-			// Scroll to load all content
-			err = c.autoScroll(page)
-			if err != nil {
-				c.logger.Error("Error during auto-scroll: ", err, " | Attempt: ", attempt)
-			}
-
-			content, err := page.Content()
-			if err != nil {
-				c.logger.Error("could not get page content: ", err, " | Attempt: ", attempt)
-				page.Close()
-				time.Sleep(retryDelay)
-				continue
-			}
+		err = page.SetExtraHTTPHeaders(map[string]string{
+			"User-Agent": c.randomUserAgent(),
+			"Referer":    "https://google.com",
+		})
+		if err != nil {
+			c.logger.Error("could not set extra headers: ", err, " | Attempt: ", attempt)
 			page.Close()
+			time.Sleep(retryDelay)
+			continue
+		}
 
-			doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
-			if err != nil {
-				c.logger.Error("failed to parse HTML from: ", pageURL, " | Attempt: ", attempt, " error: ", err)
-				time.Sleep(retryDelay)
-				continue
-			}
+		playwrightTimeout, err := strconv.Atoi(utils.GetConfig("PLAYWRIGHT_GOTO_TIMEOUT"))
+		if err != nil || playwrightTimeout <= 0 {
+			playwrightTimeout = defaultGotoTimeout
+		}
+		_, err = page.Goto(pageURL, playwright.PageGotoOptions{
+			WaitUntil: playwright.WaitUntilStateNetworkidle,
+			Timeout:   playwright.Float(float64(playwrightTimeout)),
+		})
+		if err != nil {
+			c.logger.Error("Error navigating to: ", pageURL, " | Attempt: ", attempt, " error: ", err)
+			page.Close()
+			time.Sleep(retryDelay)
+			continue
+		}
 
-			postLinks := c.extractPostLinksFromSelection(doc)
-			if len(postLinks) == 0 {
-				c.logger.Error("No posts found on ", pageURL, " | Attempt: ", attempt)
-				if attempt == maxPageRetries {
-					c.logger.Error("Max retries reached for page", pageURL)
-					break
-				}
-				time.Sleep(retryDelay)
-				continue
-			}
+		// Scroll to load all content
+		postLinks, err := c.autoScroll(page)
+		if err != nil {
+			c.logger.Error("Error during auto-scroll: ", err, " | Attempt: ", attempt)
+		}
 
-			for _, link := range postLinks {
+		var mu sync.Mutex
+		chunkSize := 15
+		chunks := splitIntoChunks(postLinks, chunkSize)
+
+		for _, chunk := range chunks {
+			var wg sync.WaitGroup
+
+			for _, link := range chunk {
 				select {
 				case <-ctx.Done():
 					return allPosts, ctx.Err()
 				default:
+
 				}
 
-				post, err := c.CrawlPostDetails(ctx, link)
-				if err != nil {
-					c.logger.Error("Error crawling post: ", link, " | Attempt: ", attempt, " error: ", err)
-					continue
-				}
-				post.City = city
-				allPosts = append(allPosts, post)
+				wg.Add(1)
+
+				go func(link string) {
+					defer wg.Done()
+
+					post, err := c.CrawlPostDetails(ctx, link)
+					if err != nil {
+						c.logger.Error("Error crawling post: ", link, " | error: ", err)
+						return
+					}
+					post.City = city
+
+					// Append to allPosts in a thread-safe manner
+					mu.Lock()
+					allPosts = append(allPosts, post)
+					mu.Unlock()
+				}(link)
 			}
 
-			time.Sleep(time.Duration(rand.Intn(randomSleepMax-randomSleepMin)+randomSleepMin) * time.Second)
-			break
+			wg.Wait()
 		}
 	}
-
 	return allPosts, nil
 }
 
@@ -298,7 +287,7 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 		post.Link = postURL
 		post.Title = strings.TrimSpace(doc.Find("h1.kt-page-title__title").Text())
 		post.Description = strings.TrimSpace(doc.Find("div.post-page__section--padded").Text())
-
+		post.Website = types.Divar
 		// Check if essential details are present
 		if post.Title == "" || post.Description == "" {
 			c.logger.Error("Missing essential post details for: ", postURL, " | Attempt: ", attempt)
@@ -319,13 +308,33 @@ func (c *DivarCrawler) CrawlPostDetails(ctx context.Context, postURL string) (cr
 
 // Helper methods
 
+// Helper function to split a slice into chunks of specified size
+func splitIntoChunks(postLinks []string, chunkSize int) [][]string {
+	var chunks [][]string
+	for i := 0; i < len(postLinks); i += chunkSize {
+		end := i + chunkSize
+		if end > len(postLinks) {
+			end = len(postLinks)
+		}
+		chunks = append(chunks, postLinks[i:end])
+	}
+	return chunks
+}
+
 func (c *DivarCrawler) randomUserAgent() string {
 	return c.userAgents[rand.Intn(len(c.userAgents))]
 }
 
-func (c *DivarCrawler) autoScroll(page playwright.Page) error {
+func (c *DivarCrawler) autoScroll(page playwright.Page) ([]string, error) {
+	var allLinks []string
+
+	maxScrollAttempts, err := strconv.Atoi(utils.GetConfig("CRAWLER_MAX_SCROLL_ATTEMPTS"))
+	if err != nil || maxScrollAttempts <= 0 {
+		maxScrollAttempts = defaultMaxScrollAttempts
+	}
+
 	scrollAttempts := 0
-	prevPostCount := 0
+	noNewContentAttempts := 0
 
 	for scrollAttempts < maxScrollAttempts {
 		// Scroll to bottom
@@ -335,55 +344,79 @@ func (c *DivarCrawler) autoScroll(page playwright.Page) error {
         }`)
 		if err != nil {
 			c.logger.Error("error scrolling page: ", err)
-			return fmt.Errorf("error scrolling page: %w", err)
+			return nil, fmt.Errorf("error scrolling page: %w", err)
 		}
 
 		// Wait for new content
 		time.Sleep(scrollWaitDuration)
 
-		// Check number of posts
-		currentPostCount, err := page.Evaluate(`() => {
-            return document.querySelectorAll('div.kt-post-card__body').length;
+		// Get page content
+		content, err := page.Content()
+		if err != nil {
+			c.logger.Error("error getting page content: ", err)
+			return nil, fmt.Errorf("error getting page content: %w", err)
+		}
+
+		// Parse the page content with goquery
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+		if err != nil {
+			c.logger.Error("error parsing page content: ", err)
+			return nil, fmt.Errorf("error parsing page content: %w", err)
+		}
+
+		// Extract links using the extractPostLinksFromSelection method
+		links := c.extractPostLinksFromSelection(doc)
+
+		// Append only new links to the list
+		newLinks := make(map[string]bool)
+		for _, link := range allLinks {
+			newLinks[link] = true
+		}
+		newLinksFound := false
+		for _, link := range links {
+			if !newLinks[link] {
+				allLinks = append(allLinks, link)
+				newLinks[link] = true
+				newLinksFound = true
+			}
+		}
+
+		// Check if new links were found
+		if newLinksFound {
+			noNewContentAttempts = 0 // Reset counter if new content is found
+		} else {
+			noNewContentAttempts++
+		}
+
+		// Exit if no new content is found after several attempts
+		if noNewContentAttempts >= 3 {
+			c.logger.Info("No new content found after multiple attempts, stopping scroll.")
+			break
+		}
+
+		// Attempt to click "load more" button if available
+		buttonExists, err := page.Evaluate(`() => {
+            const button = document.querySelector('div.post-list__load-more-btn-container-cef96 button');
+            if (button) {
+                button.click();
+                return true;
+            }
+            return false;
         }`)
 		if err != nil {
-			c.logger.Error("error counting page: ", err)
-			return fmt.Errorf("error counting posts: %w", err)
+			c.logger.Error("error clicking load more button: ", err)
+			return nil, fmt.Errorf("error clicking load more button: %w", err)
 		}
 
-		var postCount int
-		switch v := currentPostCount.(type) {
-		case float64:
-			postCount = int(v)
-		case int:
-			postCount = v
-		case string:
-			postCount, _ = strconv.Atoi(v)
-		default:
-			c.logger.Error("Unexpected type for post count: ", currentPostCount)
-			break
+		if buttonExists.(bool) {
+			// Wait for new content to load after clicking the button
+			time.Sleep(scrollWaitDuration)
 		}
 
-		if postCount == prevPostCount {
-			break
-		}
-
-		prevPostCount = postCount
 		scrollAttempts++
 	}
 
-	return nil
-}
-
-func (c *DivarCrawler) getPaginationURLs(base string, limit int) []string {
-	var pages []string
-	for i := 1; i <= limit; i++ {
-		if i == 1 {
-			pages = append(pages, base)
-		} else {
-			pages = append(pages, fmt.Sprintf("%s?page=%d", base, i))
-		}
-	}
-	return pages
+	return allLinks, nil
 }
 
 func (c *DivarCrawler) extractPostLinksFromSelection(doc *goquery.Document) []string {
@@ -488,6 +521,13 @@ func (c *DivarCrawler) extractPostDetails(doc *goquery.Document, post *crawlerMo
 	})
 	post.Features = features
 
+	// Extract Neighborhood
+	subTitle := strings.Split(doc.Find("div.kt-page-title__subtitle").Text(), "،")
+
+	if len(subTitle) >= 2 {
+		post.Neighborhood = strings.TrimSpace(subTitle[1])
+	}
+
 	// Extract images
 	var images []string
 	doc.Find("div.kt-base-carousel__slide img.kt-image-block__image").Each(func(i int, s *goquery.Selection) {
@@ -496,4 +536,5 @@ func (c *DivarCrawler) extractPostDetails(doc *goquery.Document, post *crawlerMo
 		}
 	})
 	post.Images = images
+
 }

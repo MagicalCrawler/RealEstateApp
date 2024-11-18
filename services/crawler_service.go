@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/MagicalCrawler/RealEstateApp/crawlers"
 	"github.com/MagicalCrawler/RealEstateApp/crawlers/divar"
@@ -11,7 +10,6 @@ import (
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	crawlerModels "github.com/MagicalCrawler/RealEstateApp/models/crawler"
 	"github.com/MagicalCrawler/RealEstateApp/utils"
-	"io/ioutil"
 	"log"
 	"log/slog"
 	"math"
@@ -106,7 +104,6 @@ func (s *CrawlerService) executeCrawlCycle() {
 						return
 					}
 
-					// تبدیل اعداد فارسی به انگلیسی در داده‌های بازگشتی
 					for i := range result {
 						result[i] = processPost(result[i])
 					}
@@ -139,12 +136,6 @@ func (s *CrawlerService) executeCrawlCycle() {
 		Posts:         posts,
 	}
 
-	// Save session data if needed
-	err = session.saveToJSONFile("file.json")
-	if err != nil {
-		fmt.Println("Error saving session to JSON:", err)
-	}
-
 	err = mapAndSaveCrawlerSession(session, *s.repository)
 	if err != nil {
 		s.logger.Error("Error saving crawler session:", err)
@@ -155,7 +146,6 @@ func (s *CrawlerService) executeCrawlCycle() {
 
 // Helper functions and types
 
-// Map for replacing Arabic digits to Persian digits
 // Map for replacing Persian digits to English digits
 var digitMap = map[rune]rune{
 	'۰': '0', '۱': '1', '۲': '2', '۳': '3',
@@ -267,28 +257,12 @@ func calculateAverage(samples []float64) float64 {
 	return sum / float64(len(samples))
 }
 
-// SaveToJSONFile saves the CrawlerSession to a JSON file
-func (cs *CrawlerSession) saveToJSONFile(filename string) error {
-	jsonData, err := json.MarshalIndent(cs, "", "  ")
-	if err != nil {
-		return fmt.Errorf("error marshaling JSON: %v", err)
-	}
-
-	err = ioutil.WriteFile(filename, jsonData, 0644)
-	if err != nil {
-		return fmt.Errorf("error writing JSON to file: %v", err)
-	}
-
-	return nil
-}
-
 func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) error {
-	// 1. نگاشت CrawlHistory
 	crawlHistory := models.CrawlHistory{
 		PostNum:     uint(len(session.Posts)),
 		CpuUsage:    float32(math.Round(session.TotalCPU*100) / 100),
 		MemoryUsage: float32(math.Round(session.TotalMemory*100) / 100),
-		RequestsNum: 1, // تعداد درخواست‌ها (اگر اطلاعاتی دارید اینجا پر کنید)
+		RequestsNum: uint(len(session.Posts)),
 		StartedAt:   session.StartTime,
 		FinishedAt:  session.EndTime,
 	}
@@ -306,10 +280,10 @@ func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) er
 		// ذخیره Post
 		dbPost := models.Post{
 			UniqueCode: post.ID,
-			Website:    "Divar", // فرض بر اینکه این اطلاعات موجود است
+			Website:    post.Website,
 		}
 
-		insertedPost, err := repository.PostSaving(dbPost.UniqueCode, "divar.ir")
+		insertedPost, err := repository.PostSaving(dbPost.UniqueCode, post.Website)
 		if err != nil {
 			logger.Error("failed to save post: ", post.ID, "; error: ", err)
 			log.Printf("failed to save post %s: %v", post.ID, err)
@@ -324,7 +298,7 @@ func mapAndSaveCrawlerSession(session CrawlerSession, repository db.PostRepo) er
 			Deposit:        parsePrice(post.Deposit),
 			Rent:           parsePrice(post.MonthlyRent),
 			City:           post.City.Name,
-			Neighborhood:   "",
+			Neighborhood:   post.Neighborhood,
 			Area:           parseArea(post.Area),
 			BedroomNum:     parseBedrooms(post.Rooms),
 			Age:            parseAge(post.YearBuilt),
