@@ -12,15 +12,16 @@ func initializeCommands() {
 	CommandRegistry = map[string]Command{
 		"/start": &StartCommand{},
 		//user commands
-		"Help":          &HelpCommand{},
-		"Send Location": &SendLocationCommand{},
-		"Search":        &SearchCommand{},
-		"Populars":      &PopularsCommand{},
-		"Get Redius":    &GetRediusCommand{},
-
-		"Setting":             &SettingCommand{},
-		"Filter":              &FilterCommand{},
-		"Location Attachment": &GetLocationAttachmentCommand{},
+		"Help":                    &HelpCommand{},
+		"Send Location":           &SendLocationCommand{},
+		"Search":                  &SearchCommand{},
+		"Populars":                &PopularsCommand{},
+		"Get Redius":              &GetRediusCommand{},
+		"Select Resource Website": &GetResourceWebsite{},
+		"Setting":                 &SettingCommand{},
+		"Filter":                  &FilterCommand{},
+		"Location Attachment":     &GetLocationAttachmentCommand{},
+		"Get Website":             &GetWebsiteCommand{},
 		//admin commands
 		"Premium":           &PremiumCommand{},
 		"Errors":            &ErrorsCommand{},
@@ -38,6 +39,32 @@ func initializeCommands() {
 }
 
 // /////////////////////////////////// User Commands
+type GetResourceWebsite struct{}
+
+func (cmd *GetResourceWebsite) Execute(message *Message, user *models.User) {
+
+	msg := "Enter \n      s : Sheypoor\n      d : Divar"
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+
+func (cmd *GetResourceWebsite) AllowedRoles() []models.Role {
+	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+}
+
+// /////////////////////////////////// User Commands
+type GetWebsiteCommand struct{}
+
+func (cmd *GetWebsiteCommand) Execute(message *Message, user *models.User) {
+
+	msg := fmt.Sprintf("Now all your searches will be from the ' %s 'website.", message.Value)
+	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
+}
+
+func (cmd *GetWebsiteCommand) AllowedRoles() []models.Role {
+	return []models.Role{models.USER, models.ADMIN, models.SUPER_ADMIN}
+}
+
+// ////////////////////////////////////
 type StartCommand struct{}
 
 func (cmd *StartCommand) Execute(message *Message, user *models.User) {

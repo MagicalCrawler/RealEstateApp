@@ -157,6 +157,9 @@ func getKeyboard(role models.Role) ReplyKeyboardMarkupWithLocation {
 					{Text: "Send Location"},
 					{Text: "Help"},
 				},
+				{
+					{Text: "Select Resource Website"},
+				},
 			},
 			ResizeKeyboard:  true,
 			OneTimeKeyboard: true,

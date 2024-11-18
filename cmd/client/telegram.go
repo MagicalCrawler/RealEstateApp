@@ -17,7 +17,6 @@ type Command interface {
 }
 
 var (
-
 	CommandRegistry  map[string]Command
 	userRepository   db.UserRepository
 	postRepository   db.PostRepo
@@ -83,6 +82,13 @@ func handleMessage(message *Message) {
 	} else if strings.Contains(message.Title, "redius=") {
 		message.Value = message.Title
 		message.Title = "Get Redius"
+	} else if message.Title == "s" || message.Title == "d" {
+		if message.Title == "s" {
+			message.Value = "sheypoor"
+		} else {
+			message.Value = "divar"
+		}
+		message.Title = "Get Website"
 	} else if message.Title == "c" {
 		message.Title = "Get Admin Id"
 	}
