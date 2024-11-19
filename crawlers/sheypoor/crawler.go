@@ -304,8 +304,9 @@ func (c *SheypoorCrawler) CrawlPostDetails(ctx context.Context, postURL string) 
 			post.Images = imageUrls
 		}
 
-		// Extract title of the post
+		// Extract title and ID of the post
 		if title := doc.Find("h1#listing-title").Text(); title != "" {
+			post.ID = strings.TrimSpace(title)
 			post.Title = strings.TrimSpace(title)
 		}
 
@@ -374,6 +375,8 @@ func (c *SheypoorCrawler) CrawlPostDetails(ctx context.Context, postURL string) 
 		if rentalMetadata.Capacity != "" || rentalMetadata.NormalDayPrice != "" || rentalMetadata.WeekendPrice != "" || rentalMetadata.HolidayPrice != "" || rentalMetadata.ExtraPersonCost != "" {
 			post.RentalMetadata = rentalMetadata
 		}
+
+		post.Link = postURL
 
 		post.Website = types.Sheypoor
 
