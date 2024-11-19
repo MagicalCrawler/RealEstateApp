@@ -22,7 +22,7 @@ const (
 	timeout = 10
 )
 
-var userLastFilterMap = make(map[uint]uint) // Stores the last filter selected by each user (UserID -> FilterID)
+var userLastFilterMap = make(map[uint]uint) 
 // Temporary in-memory storage for user filter items
 var userFilterItems = make(map[uint]*models.FilterItem)
 
@@ -571,6 +571,7 @@ func handleFilterSelection(userID uint, filterID uint) {
 
 func createFilter(userId uint) {
 	// Save the FilterItem
+
 	userFilterItems[userId].UserID = userId
 	createdFilterItem, err := filterRepository.Create(*userFilterItems[userId])
 
@@ -580,7 +581,8 @@ func createFilter(userId uint) {
 	}
 
 	handleFilterSelection(userId, createdFilterItem.ID)
-	cancelFilter(userId)
+	userLastFilterMap = make(map[uint]uint) 
+	userFilterItems = make(map[uint]*models.FilterItem)
 }
 
 func cancelFilter(userId uint) {
@@ -694,5 +696,27 @@ func createInlineKeyboardFromPosts(posts []models.PostHistory) InlineKeyboardMar
 		buttons = append(buttons, row)
 	}
 
+	return InlineKeyboardMarkup{InlineKeyboard: buttons}
+}
+
+func generateResourceTypeButtons() InlineKeyboardMarkup {
+	buttons := make([][]InlineKeyboardButton, 0)
+
+	// Define resource types
+	resourceTypes := []string{"Divar", "Sheypor", "Both"}
+
+	// Create a button for each resource type
+	for _, resourceType := range resourceTypes {
+			row := []InlineKeyboardButton{
+					{
+							Text: resourceType, // Display the resource type
+							Data: fmt.Sprintf("resource_%s", resourceType), // Unique callback data for each resource type
+					},
+			}
+			// Add the row to the keyboard
+			buttons = append(buttons, row)
+	}
+
+	// Return the inline keyboard markup
 	return InlineKeyboardMarkup{InlineKeyboard: buttons}
 }

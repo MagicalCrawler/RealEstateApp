@@ -62,7 +62,9 @@ type GetResourceWebsite struct{}
 
 func (cmd *GetResourceWebsite) Execute(message *Message, user *models.User) {
 
-	msg := "Enter \n      s : Sheypoor\n      d : Divar"
+	msg := "Select resource type for search"
+	
+	sendMessageWithInlineKeyboard(message.Chat.ID, msg, generateResourceTypeButtons())
 	sendMessageWithKeyboard(message.Chat.ID, msg, getKeyboard(user.Role))
 }
 
