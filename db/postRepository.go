@@ -148,11 +148,8 @@ func (daba PostRepository) PostHistorySaving(postHistory models.PostHistory, pos
 		CrawlHistoryID: crawlHistory.ID,
 	}
 
-	if !daba.PostHistoryIsExist(myPostHistory) {
-		err := daba.dbConnection.Create(&myPostHistory).Error
-		return myPostHistory, err
-	}
-	return myPostHistory, errors.New("Post history already exists")
+	err := daba.dbConnection.Create(&myPostHistory).Error
+	return myPostHistory, err
 }
 
 func (dba PostRepository) CrawlHistorySaving(crawlHistory models.CrawlHistory) (models.CrawlHistory, error) {
