@@ -700,6 +700,7 @@ func createInlineKeyboardFromPosts(posts []models.PostHistory) InlineKeyboardMar
 		row := []InlineKeyboardButton{
 			{
 				Text: text,
+				URL: post.PostURL,
 				// Text: fmt.Sprintf("%s - %d", post.Title, post.Price), // Display title and price
 				Data: fmt.Sprintf("post_%d", post.ID), // Unique callback data
 			},
