@@ -285,7 +285,8 @@ func (c *SheypoorCrawler) CrawlPostDetails(ctx context.Context, postURL string) 
 
 		if post.Title == "" {
 			c.logger.Error("Missing essential post details for: ", postURL, " | Attempt: ", attempt)
-			return crawlerModels.Post{}, err
+			time.Sleep(retryDelay)
+			continue
 		}
 
 		// Extract location details
