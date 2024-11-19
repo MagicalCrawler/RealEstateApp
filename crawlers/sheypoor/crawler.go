@@ -294,15 +294,9 @@ func (c *SheypoorCrawler) CrawlPostDetails(ctx context.Context, postURL string) 
 		doc.Find("nav#UVpPz ul li a").Each(func(i int, s *goquery.Selection) {
 			locationDetails = append(locationDetails, strings.TrimSpace(s.Text()))
 		})
-		if len(locationDetails) > 0 {
-			post.City = crawlerModels.City{
-				Name:  locationDetails[0], // Assuming the first element is the city name
-				Slug:  strings.ToLower(strings.ReplaceAll(locationDetails[0], " ", "-")),
-				Level: "city",
-			}
-			if len(locationDetails) > 1 {
-				post.Neighborhood = strings.Join(locationDetails[1:], ", ")
-			}
+
+		if len(locationDetails) > 1 {
+			post.Neighborhood = strings.TrimSpace(locationDetails[len(locationDetails)-1])
 		}
 
 		// Extract property images
