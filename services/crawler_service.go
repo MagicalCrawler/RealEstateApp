@@ -72,7 +72,7 @@ func (s *CrawlerService) executeCrawlCycle() {
 		return
 	}
 
-	chunkedCities := chunkCities(cities, 10)
+	chunkedCities := chunkCities(cities, 5)
 	var posts []crawlerModels.Post
 
 	var (

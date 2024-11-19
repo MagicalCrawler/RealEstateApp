@@ -153,7 +153,7 @@ func (c *DivarCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([]cr
 		}
 
 		var mu sync.Mutex
-		chunkSize := 15
+		chunkSize := 5
 		chunks := splitIntoChunks(postLinks, chunkSize)
 
 		for _, chunk := range chunks {

@@ -150,7 +150,7 @@ func (c *SheypoorCrawler) Crawl(ctx context.Context, city crawlerModels.City) ([
 		}
 
 		var mu sync.Mutex
-		chunkSize := 15
+		chunkSize := 5
 		chunks := splitIntoChunks(postLinks, chunkSize)
 
 		for _, chunk := range chunks {
@@ -277,6 +277,17 @@ func (c *SheypoorCrawler) CrawlPostDetails(ctx context.Context, postURL string) 
 			continue
 		}
 
+		// Extract title and ID of the post
+		if title := doc.Find("h1#listing-title").Text(); title != "" {
+			post.ID = strings.TrimSpace(title)
+			post.Title = strings.TrimSpace(title)
+		}
+
+		if post.Title == "" {
+			c.logger.Error("Missing essential post details for: ", postURL, " | Attempt: ", attempt)
+			return crawlerModels.Post{}, err
+		}
+
 		// Extract location details
 		var locationDetails []string
 		doc.Find("nav#UVpPz ul li a").Each(func(i int, s *goquery.Selection) {
@@ -302,12 +313,6 @@ func (c *SheypoorCrawler) CrawlPostDetails(ctx context.Context, postURL string) 
 		})
 		if len(imageUrls) > 0 {
 			post.Images = imageUrls
-		}
-
-		// Extract title and ID of the post
-		if title := doc.Find("h1#listing-title").Text(); title != "" {
-			post.ID = strings.TrimSpace(title)
-			post.Title = strings.TrimSpace(title)
 		}
 
 		// Extract price information

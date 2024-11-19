@@ -1,7 +1,6 @@
 package db
 
 import (
-	"errors"
 	"github.com/MagicalCrawler/RealEstateApp/models"
 	"github.com/MagicalCrawler/RealEstateApp/types"
 	"gorm.io/gorm"
@@ -95,11 +94,18 @@ func (pr PostRepository) PostSaving(uniCode string, src types.WebsiteSource) (mo
 		UniqueCode: uniCode,
 		Website:    src,
 	}
-	if !pr.PostIsExist(post) {
-		err := pr.dbConnection.Create(&post).Error
-		return post, err
+
+	if pr.PostIsExist(post) {
+		err := pr.dbConnection.Table("posts").Select("count(*) > 0").Where("unique_code = ?", post.UniqueCode).Scan(&post).Error
+		if err != nil {
+			return post, err
+		}
+
+		return post, nil
 	}
-	return post, errors.New("Post already exists")
+
+	err := pr.dbConnection.Create(&post).Error
+	return post, err
 }
 
 // return boolean for existing a postHistory
