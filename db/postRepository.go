@@ -24,6 +24,7 @@ type PostRepo interface {
 	GetAllPosts() ([]models.PostHistory, error)
 }
 
+// connection to database
 type PostRepository struct {
 	dbConnection *gorm.DB
 	logger       *slog.Logger
@@ -32,6 +33,8 @@ type PostRepository struct {
 func NewPostRepository(dbConnection *gorm.DB) PostRepo {
 	return PostRepository{dbConnection: dbConnection}
 }
+
+// return just a boolean for existing a crawlHistory
 func (pr PostRepository) CrawlHistoryIsExist(crawlHistory models.CrawlHistory) bool {
 	var isExist bool
 	err := pr.dbConnection.Table("crawl_histories").
@@ -75,6 +78,7 @@ func (pr PostRepository) GetAllPosts() ([]models.PostHistory, error) {
 	return posts, nil
 }
 
+// return boolean for existing a post
 func (pr PostRepository) PostIsExist(post models.Post) bool {
 	var isExist bool
 	err := pr.dbConnection.Table("posts").Select("count(*) > 0").Where("unique_code = ?", post.UniqueCode).Find(&isExist).Error
@@ -84,6 +88,8 @@ func (pr PostRepository) PostIsExist(post models.Post) bool {
 		return isExist
 	}
 }
+
+// save a post by unicode and its source
 func (pr PostRepository) PostSaving(uniCode string, src types.WebsiteSource) (models.Post, error) {
 	post := models.Post{
 		UniqueCode: uniCode,
@@ -96,6 +102,7 @@ func (pr PostRepository) PostSaving(uniCode string, src types.WebsiteSource) (mo
 	return post, errors.New("Post already exists")
 }
 
+// return boolean for existing a postHistory
 func (pr PostRepository) PostHistoryIsExist(postHistory models.PostHistory) bool {
 	var isExist bool
 	err := pr.dbConnection.Table("post_histories").Select("count(*) > 0").Where("post_url = ?", postHistory.PostURL).Find(&isExist).Error
@@ -106,6 +113,8 @@ func (pr PostRepository) PostHistoryIsExist(postHistory models.PostHistory) bool
 	}
 
 }
+
+// find a post and its postHistory by unique code
 func (pr PostRepository) FindByUnicode(UniCode string) (models.Post, models.PostHistory, error) {
 	var post models.Post
 	var postHistory models.PostHistory
@@ -114,6 +123,8 @@ func (pr PostRepository) FindByUnicode(UniCode string) (models.Post, models.Post
 	return post, postHistory, err
 
 }
+
+// find a post by id
 func (pr PostRepository) FindByID(ID uint) (models.Post, error) {
 	var post models.Post
 	err := pr.dbConnection.First(&post, "ID = ?", ID).Error
@@ -121,6 +132,7 @@ func (pr PostRepository) FindByID(ID uint) (models.Post, error) {
 
 }
 
+// save post history with all its dependencies
 func (daba PostRepository) PostHistorySaving(postHistory models.PostHistory, post models.Post, crawlHistory models.CrawlHistory) (models.PostHistory, error) {
 
 	myPostHistory := models.PostHistory{
@@ -166,6 +178,7 @@ func (dba PostRepository) CrawlHistorySaving(crawlHistory models.CrawlHistory) (
 	return myCrawlHistory, err
 }
 
+// get all crawls info
 func (pr PostRepository) GetAllCrawlHistory() []models.CrawlHistory {
 	var crawlHistories []models.CrawlHistory
 	pr.dbConnection.Find(&crawlHistories)

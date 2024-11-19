@@ -12,21 +12,25 @@ type BookmarkRepo interface {
 	Delete(bookmark models.Bookmark) error
 }
 
+// Connection to database
 type BookmarkRepositoryImpl struct {
 	dbConnection *gorm.DB
 }
 
+// connection in interface
 func NewBookmarkRepository(dbConnection *gorm.DB) BookmarkRepo {
 	return BookmarkRepositoryImpl{dbConnection: dbConnection}
 }
 
+// find a bookmark by an isntance of its model
 func (br BookmarkRepositoryImpl) Find(bookmark models.Bookmark) (models.Bookmark, error) {
 	if err := br.dbConnection.Find(&bookmark).Error; err != nil {
 		return models.Bookmark{}, err
 	}
 	return bookmark, nil
-
 }
+
+// find all bookmark of a user
 func (br BookmarkRepositoryImpl) FindAll(userID uint) ([]models.Bookmark, error) {
 	bookmarks := []models.Bookmark{}
 	if err := br.dbConnection.Find(&bookmarks).Error; err != nil {

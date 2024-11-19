@@ -6,8 +6,8 @@ import (
 )
 
 type Post struct {
-	UniqueCode string              `gorm:"not null;unique"`
-	Website    types.WebsiteSource `gorm:"not null;type:string"`
+	UniqueCode string              `gorm:"not null;unique"`      // each ads has a unique code in divar
+	Website    types.WebsiteSource `gorm:"not null;type:string"` // for search between some sources
 	WatchedNum uint
 	gorm.Model
 }

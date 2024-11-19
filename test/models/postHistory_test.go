@@ -41,6 +41,7 @@ func TestNotExistingPost(t *testing.T) {
 	}
 }
 
+// check connection to db and crawl history insert successfully into db
 func TestCrawlHistory(t *testing.T) {
 	crawlInfo := models.CrawlHistory{PostNum: 123}
 	if err := dbConnection.Create(&crawlInfo).Error; err != nil {
