@@ -22,6 +22,8 @@ const (
 	timeout = 10
 )
 
+var resource = "Both"
+
 var userLastFilterMap = make(map[uint]uint) 
 // Temporary in-memory storage for user filter items
 var userFilterItems = make(map[uint]*models.FilterItem)
@@ -327,6 +329,12 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 	// Initialize the user's filter map if it doesn't exist
 	if _, exists := userFilters[uint64(user.ID)]; !exists {
 		userFilters[uint64(user.ID)] = make(map[string]string)
+	}
+
+	if strings.HasPrefix(callbackQuery.Data, "resource_") {
+		// Extract resource type from the callback data
+		resource := strings.TrimPrefix(callbackQuery.Data, "resource_")
+		return
 	}
 
 	if strings.HasPrefix(callbackQuery.Data, "post_") {
