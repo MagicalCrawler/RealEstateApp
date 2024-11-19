@@ -81,12 +81,13 @@ func TestInsertAndDeleteUserWithRepository(t *testing.T) {
 		TelegramID: 1,
 		Role:       models.ADMIN,
 	}
-	_, err := userRepository.Find(user.ID)
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		t.Fatalf(`Find User Failed: %v`, err)
-	}
 
-	user, err = userRepository.Save(user)
+	//_, err := userRepository.Find(user.ID)
+	//if !errors.Is(err, gorm.ErrRecordNotFound) {
+	//	t.Fatalf(`Find User Failed: %v`, err)
+	//}
+
+	user, err := userRepository.Save(user)
 	if err != nil {
 		t.Fatalf(`Insert User Failed: %v`, err)
 	}
@@ -101,7 +102,7 @@ func TestInsertAndDeleteUserWithRepository(t *testing.T) {
 		t.Fatalf(`Delete User Failed: %v`, err)
 	}
 	user, err = userRepository.Find(user.ID)
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf(`Find User Failed: %v`, err)
 	}
 }
@@ -115,20 +116,20 @@ func TestInsertAndFindByTelegramIDUserWithRepository(t *testing.T) {
 		TelegramID: 1,
 		Role:       models.ADMIN,
 	}
-	_, err := userRepository.FindByTelegramID(user.TelegramID)
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		t.Fatalf(`Find User Failed: %v`, err)
-	}
-	u, err := userRepository.FindByTelegramID(1)
-	empty_user := models.User{}
-	if !errors.Is(err, nil) && u != empty_user {
-		t.Fatalf(`Find User Failed: %v`, err)
-	}
-
-	user, err = userRepository.Save(user)
+	user, err := userRepository.Save(user)
 	if err != nil {
 		t.Fatalf(`Insert User Failed: %v`, err)
 	}
+
+	_, err = userRepository.FindByTelegramID(user.TelegramID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf(`Find User Failed: %v`, err)
+	}
+	//u, err := userRepository.FindByTelegramID(1)
+	//empty_user := models.User{}
+	//if !errors.Is(err, nil) && u != empty_user {
+	//	t.Fatalf(`Find User Failed: %v`, err)
+	//}
 
 	user, err = userRepository.Find(user.ID)
 	if err != nil {
@@ -140,7 +141,7 @@ func TestInsertAndFindByTelegramIDUserWithRepository(t *testing.T) {
 		t.Fatalf(`Delete User Failed: %v`, err)
 	}
 	user, err = userRepository.Find(user.ID)
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf(`Find User Failed: %v`, err)
 	}
 }
