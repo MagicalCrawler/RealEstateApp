@@ -96,7 +96,9 @@ func (pr PostRepository) PostSaving(uniCode string, src types.WebsiteSource) (mo
 	}
 
 	if pr.PostIsExist(post) {
-		err := pr.dbConnection.Table("posts").Select("count(*) > 0").Where("unique_code = ?", post.UniqueCode).Scan(&post).Error
+		err := pr.dbConnection.Table("posts").
+			Where("unique_code = ?", post.UniqueCode).
+			First(&post).Error
 		if err != nil {
 			return post, err
 		}
