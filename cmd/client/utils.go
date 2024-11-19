@@ -589,8 +589,8 @@ func createFilter(userId uint) {
 	}
 
 	handleFilterSelection(userId, createdFilterItem.ID)
-	userLastFilterMap = make(map[uint]uint) 
-	userFilterItems = make(map[uint]*models.FilterItem)
+	// userLastFilterMap = make(map[uint]uint) 
+	// userFilterItems = make(map[uint]*models.FilterItem)
 }
 
 func cancelFilter(userId uint) {
