@@ -334,6 +334,9 @@ func handleCallbackQuery(callbackQuery *CallbackQuery) {
 	if strings.HasPrefix(callbackQuery.Data, "resource_") {
 		// Extract resource type from the callback data
 		resource := strings.TrimPrefix(callbackQuery.Data, "resource_")
+
+		log.Printf("resource selected %s", resource)
+
 		return
 	}
 
